@@ -54,9 +54,41 @@ int main(int argc, char* argv[]) {
     std::cout << "VERSION:  " << glGetString(GL_VERSION) << std::endl;
 
     // Keep the engine sandbox alive for 4 seconds to view terminal metrics
-    SDL_Delay(4000);
+    // SDL_Delay(4000);
 
-    // 6. Explicit Clean Resource Teardown
+    // --- NEW: CORE ENGINE LIFE WORKBENCH ---
+    bool isRunning = true;
+    SDL_Event event;
+
+    // The Master Game Loop
+    while (isRunning) {
+
+        // Pillar 1: Process Native OS Input & Events
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_EVENT_QUIT) {
+                isRunning = false; // Player clicked the 'X' button on the window
+            }
+            else if (event.type == SDL_EVENT_KEY_DOWN) {
+                // If player presses the Escape key, flag the engine to shut down cleanly
+                if (event.key.key == SDLK_ESCAPE) {
+                    isRunning = false;
+                }
+            }
+        }
+
+        // TODO: Update Engine Systems (Physics, Positions, Frame Timers go here)
+
+        // Render Frames via OpenGL GPU Buffers
+        // Clear the screen with a beautiful, custom dark tactical background color
+        glClearColor(0.1f, 0.14f, 0.18f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // Swap the back buffer to the front screen buffer to display what we drew
+        SDL_GL_SwapWindow(window);
+    }
+
+    // Explicit Clean Resource 
+    std::cout << "HT Game Engine shutting down cleanly..." << std::endl;
     SDL_GL_DestroyContext(glContext);
     SDL_DestroyWindow(window);
     SDL_Quit();

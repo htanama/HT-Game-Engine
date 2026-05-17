@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(HT_Game_Engine LANGUAGES CXX C)
+project(HT_Game_Engine LANGUAGES CXX C) # <-- MUST have 'CXX' and 'C' explicitly written here
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
