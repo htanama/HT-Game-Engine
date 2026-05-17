@@ -1,17 +1,21 @@
 cmake_minimum_required(VERSION 3.20)
-project(HT_Game_Engine LANGUAGES CXX)
+project(HT_Game_Engine LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Dynamically find all engine source files relatively
 file(GLOB_RECURSE SOURCES "src/*.cpp")
-add_executable(${PROJECT_NAME} ${SOURCES})
+set (GLAD_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/glad/src/glad.c")
+
+add_executable(${PROJECT_NAME} ${SOURCES} ${GLAD_SOURCE})
 
 # --- DETECT WINDOWS AND LINK RELATIVE SDL3 BUNDLE ---
 if(WIN32)
-    # ${CMAKE_CURRENT_SOURCE_DIR} points to your root directory: D:/Windows-Dev-Projects/HT-Game-Engine
+    # ${CMAKE_CURRENT_SOURCE_DIR} points to your root directory 
     set(SDL3_DIR "${CMAKE_CURRENT_SOURCE_DIR}/SDL3-3.4.8/cmake")
+
+    set(SDLCPU_TARGET "x64" CACHE STRING "Force x64 target to skip try_compile check")
     find_package(SDL3 REQUIRED CONFIG)
     
     # Post-build: Copy the SDL3.dll alongside your final .exe file automatically
@@ -29,4 +33,10 @@ endif()
 
 # Bind everything together
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
-target_include_directories(${PROJECT_NAME} PRIVATE src)
+
+# Tell the compiler where to find headers for BOTH your code and GLAD's glad.h
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    src
+    "${CMAKE_CURRENT_SOURCE_DIR}/glad/include"
+    
+)

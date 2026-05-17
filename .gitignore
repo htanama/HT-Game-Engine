@@ -1,0 +1,14 @@
+# Ignore Visual Studio local cache and workspace configurations
+.vs/
+/out/
+
+# Ignore standard CMake build artifacts if generated manually
+/[Bb]uild/
+/CMakeFiles/
+CMakeCache.txt
+
+# Ignore compilation output files
+*.exe
+*.pdb
+*.ilk
+*.obj
