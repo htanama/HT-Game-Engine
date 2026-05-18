@@ -3,19 +3,20 @@
 #include <SDL3/SDL.h>
 #include <iostream>
 
+
 int main(int argc, char* argv[]) {
-    // 1. Initialize SDL3 Video Subsystem
+    // Initialize SDL3 Video Subsystem
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "SDL3 Initialization Failed: " << SDL_GetError() << std::endl;
         return -1;
     }
 
-    // 2. Request an OpenGL 4.6 Core Profile Context
+    // Request an OpenGL 4.6 Core Profile Contex
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-    // 3. Create the Native Window Context
+    // Create the Native Window Context
     SDL_Window* window = SDL_CreateWindow(
         "HT Game Engine - Engine Context Verified",
         1024,
@@ -29,16 +30,17 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    // 4. Create the OpenGL Context bound to our Window
+    // Create the OpenGL Context bound to our Window
     SDL_GLContext glContext = SDL_GL_CreateContext(window);
     if (!glContext) {
         std::cerr << "Failed to Create OpenGL Context: " << SDL_GetError() << std::endl;
+        SDL_GL_DestroyContext(glContext);
         SDL_DestroyWindow(window);
         SDL_Quit();
         return -1;
     }
 
-    // 5. Initialize GLAD by feeding it SDL's function loader address
+    // Initialize GLAD by feeding it SDL's function loader address
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
         std::cerr << "Failed to Initialize GLAD OpenGL Loader!" << std::endl;
         SDL_GL_DestroyContext(glContext);
@@ -47,8 +49,8 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    // Success! Query the GPU to prove we are running hardware acceleration
-    std::cout << "HT Game Engine Initialized Cleanly!" << std::endl;
+    // SUCCESS! Query the GPU to prove we are running hardware acceleration
+    std::cout << "HT Game Engine Initialization Cleanly!" << std::endl;
     std::cout << "VENDOR:   " << glGetString(GL_VENDOR) << std::endl;
     std::cout << "RENDERER: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "VERSION:  " << glGetString(GL_VERSION) << std::endl;
@@ -56,17 +58,83 @@ int main(int argc, char* argv[]) {
     // Keep the engine sandbox alive for 4 seconds to view terminal metrics
     // SDL_Delay(4000);
 
-    // --- NEW: CORE ENGINE LIFE WORKBENCH ---
+    // ==========================================================
+    // LESSON 2: SHADER SOURCE & COMPILATION
+    // ==========================================================
+
+    // 1. Vertex Shader Source String Literal
+    const char* vertexShaderSource = "#version 460 core\n"
+        "layout (location = 0) in vec3 aPos;\n"
+        "void main() {\n"
+        "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+        "}\n\0";
+
+    // 2. Fragment Shader Source String Literal (Bright Orange/Amber)
+    const char* fragmentShaderSource = "#version 460 core\n"
+        "out vec4 FragColor;\n"
+        "void main() {\n"
+        "   FragColor = vec4(1.0f, 0.5f, 0.0f, 1.0f);\n"
+        "}\n\0";
+
+    // 3. Compile Vertex Shader on the GPU
+    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    glCompileShader(vertexShader);
+
+    // 4. Compile Fragment Shader on the GPU
+    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+    glCompileShader(fragmentShader);
+
+    // 5. Link Shaders into a single executable GPU Shader Program
+    unsigned int shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
+
+    // Clean up the individual intermediate shader objects once linked
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
     bool isRunning = true;
     SDL_Event event;
 
+    // Define our raw shape date in CPU memory (X, Y, Z)
+    float vertices[] = {
+        -0.5f, -0.5f, 0.0f, // Bottom-Left point
+         0.5f, -0.5f, 0.0f, // Bottom-Right point
+         0.0f,  0.5f, 0.0f  // Top-Center Point
+    };
+    unsigned int VAO, VBO; // Vertex Buffer Object
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+
+    // --- Record Configuration Matrix ---
+    glBindVertexArray(VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // Note: GL_STATIC_DRAW tells the GPU that we will set this data once and draw it 
+    // many times, which optimizes it for extreme rendering speeds inside the card.
+
+    // Define the Memory Layout Link (Vertex Attributes)
+    // Tells the GPU: "Hey, take data location 0, look at 3 floats at a time, 
+    // and the gap between each point is 3 times the size of a float."
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Clean Unbind Context
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+
     // The Master Game Loop
     while (isRunning) {
-
-        // Pillar 1: Process Native OS Input & Events
+        // Process Native OS Input & Events
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
-                isRunning = false; // Player clicked the 'X' button on the window
+                isRunning = false; // Player Clicked the 'X' button on the window
             }
             else if (event.type == SDL_EVENT_KEY_DOWN) {
                 // If player presses the Escape key, flag the engine to shut down cleanly
@@ -79,16 +147,31 @@ int main(int argc, char* argv[]) {
         // TODO: Update Engine Systems (Physics, Positions, Frame Timers go here)
 
         // Render Frames via OpenGL GPU Buffers
-        // Clear the screen with a beautiful, custom dark tactical background color
+        // Clear the screen with a beautiful, custom gray-blue background color
         glClearColor(0.1f, 0.14f, 0.18f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        // NEW: Tell the GPU to use our custom shader program
+        glUseProgram(shaderProgram);
+
+        // NEW: Bind our triangle configuration template 
+        glBindVertexArray(VAO);
+
+        // NEW: Issue the hardware drawing command (Draw 1 primitive triangle using 3 vertices)
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
         // Swap the back buffer to the front screen buffer to display what we drew
         SDL_GL_SwapWindow(window);
+
     }
 
-    // Explicit Clean Resource 
+    // Expliciet Clean Resource
     std::cout << "HT Game Engine shutting down cleanly..." << std::endl;
+
+    // Deallocate local GPU buffer IDs cleanly before destroying context
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+
     SDL_GL_DestroyContext(glContext);
     SDL_DestroyWindow(window);
     SDL_Quit();
