@@ -10,6 +10,11 @@
 #include <glm/gtc/matrix_transform.hpp> // Matrix transformations (translate, rotate, scale, lookAt)
 #include <glm/gtc/type_ptr.hpp>         // Allows us to pass GLM matrices directly to the GPU
 
+// --- ImGui Includes ---
+#include "imgui.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_opengl3.h"
+
 std::string loadShaderSourceFile(const char* filePath) {
     std::string shaderCode;
     std::ifstream shaderFile;
@@ -35,7 +40,13 @@ std::string loadShaderSourceFile(const char* filePath) {
     return shaderCode;
 }
 
-
+// INPUT MAPPING STRUCTURE
+// We store the state of keys here. This allows the logic to check "is W held?" 
+// every single frame, regardless of when the key was originally pressed.
+struct InputState {
+    bool up = false, down = false, left = false, right = false;
+    bool forward = false, backward = false;
+};
 
 int main(int argc, char* argv[]) {
         
@@ -154,23 +165,84 @@ int main(int argc, char* argv[]) {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
+    // --- ImGui Initialization ---
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui_ImplSDL3_InitForOpenGL(window, glContext);
+    ImGui_ImplOpenGL3_Init("#version 460");
+  
+    // Get the IO structure
+    ImGuiIO& io = ImGui::GetIO();
+
+    // Use the default font but set the size
+    // The default ImGui font is internal, so we don't need a .ttf file path.
+    // Changing '18.0f' to a higher number (e.g., 24.0f or 32.0f) will enlarge the text.
+    io.Fonts->AddFontDefault();
+    io.FontGlobalScale = 1.5f; // This makes the font itself 2x larger
+
+    // This scales the entire UI globally (buttons, text, spacing)
+    // ImGui::GetStyle().ScaleAllSizes(2.0f); // 2.0x zoom
+
+    // --- SETUP INPUT & POSITION ---
+    InputState input;
+    glm::vec3 objectPosition = glm::vec3(0.0f, 0.0f, 0.0f); // Current translation
+    float moveSpeed = 0.01f;                               // How fast we move
 
     // The Master Game Loop
     while (isRunning) {
         // Process Native OS Input & Events
         while (SDL_PollEvent(&event)) {
+            // Forward the event to ImGui
+            // This allows ImGui to handle dragging, clicking, and resizing.
+            ImGui_ImplSDL3_ProcessEvent(&event);
+
             if (event.type == SDL_EVENT_QUIT) {
                 isRunning = false; // Player Clicked the 'X' button on the window
             }
-            else if (event.type == SDL_EVENT_KEY_DOWN) {
-                // If player presses the Escape key, flag the engine to shut down cleanly
-                if (event.key.key == SDLK_ESCAPE) {
-                    isRunning = false;
+            // Handle Keyboard: KEY_DOWN sets state to true, KEY_UP sets it to false.
+            else if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {                
+                bool isDown = (event.type == SDL_EVENT_KEY_DOWN);
+
+                switch (event.key.key)
+                {
+                case SDLK_W:      input.up = isDown; break;
+                case SDLK_S:      input.down = isDown; break;
+                case SDLK_A:      input.left = isDown; break;
+                case SDLK_D:      input.right = isDown; break;
+                case SDLK_Q:      input.forward = isDown; break; // Move closer
+                case SDLK_E:      input.backward = isDown; break; // Move further
+                case SDLK_ESCAPE: if (isDown) isRunning = false; break;
                 }
+                
             }
         }
 
-        // TODO: Update Engine Systems (Physics, Positions, Frame Timers go here)
+        // LOGIC UPDATE
+        // We use the 'input' struct to update our objectPosition.
+        // This is decoupled from the event loop, making it framerate-stable.
+        if (input.up)       objectPosition.y += moveSpeed;
+        if (input.down)     objectPosition.y -= moveSpeed;
+        if (input.left)     objectPosition.x -= moveSpeed;
+        if (input.right)    objectPosition.x += moveSpeed;
+        if (input.forward)  objectPosition.z += moveSpeed;
+        if (input.backward) objectPosition.z -= moveSpeed;
+
+        // --- DEBUG: CALCULATE CURRENT VERTEX POSITIONS ---
+        // Since we are applying translation to the whole model, we add the current
+        // 'objectPosition' to our original raw coordinates.
+        glm::vec3 v1 = glm::vec3(-0.5f, -0.5f, 0.0f) + objectPosition;
+        glm::vec3 v2 = glm::vec3(0.5f, -0.5f, 0.0f) + objectPosition;
+        glm::vec3 v3 = glm::vec3(0.0f, 0.5f, 0.0f) + objectPosition;
+
+        // Print to console once per second (so it doesn't spam your terminal)
+        static Uint64 lastTime = 0;
+        if (SDL_GetTicks() - lastTime > 1000) {
+            std::cout << "V1: " << v1.x << "," << v1.y << " | "
+                << "V2: " << v2.x << "," << v2.y << " | "
+                << "V3: " << v3.x << "," << v3.y << std::endl;
+            lastTime = SDL_GetTicks();
+        }
+
 
         // Render Frames via OpenGL GPU Buffers
         // Clear the screen with a beautiful, custom gray-blue background color
@@ -180,16 +252,16 @@ int main(int argc, char* argv[]) {
         // NEW: Tell the GPU to use our custom shader program
         glUseProgram(shaderProgram);
 
-        // Transformation Calculations
-
-        // Model Matrix: Spin the triangle over time on the Y-axis
+        // MODEL MATRIX: Apply movement (Translate) THEN rotation.
+        // Order matters: We translate relative to (0,0,0), then rotate around that new spot.
         glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, objectPosition);
 
         // this line is calculating the exact number of seconds that have passed since your game engine booted up
         float time = (float)SDL_GetTicks() / 1000.0f;
 
         // Direction for the rotation matrix
-        model = glm::rotate(model, time * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, time * glm::radians(50.0f), glm::vec3(0.0f, -1.0f, 0.0f));
 
         // =================================================================
         // VIEW TRANSFORMATION (THE VIEW MATRIX)
@@ -199,7 +271,7 @@ int main(int argc, char* argv[]) {
         // Therefore, to make the player feel like they stepped BACK by +3.0 units, 
         // we must translate the entire WORLD's coordinates BACKWARD by -3.0 units 
         // down the Right-Handed negative Z-axis.
-        glm::mat4 view = glm::mat4(1.0f);
+        glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f));
 
         // Right-Handed Cooridnate system move the objeectd away from the Screen or closer to the screen
         view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f)); 
@@ -213,15 +285,34 @@ int main(int argc, char* argv[]) {
         unsigned int projLoc  = glGetUniformLocation(shaderProgram, "projection");
          
         // Upload C++ matrices directly into the GPU registers
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
         // Bind our triangle configuration template 
         glBindVertexArray(VAO);
 
         // Issue the hardware drawing command (Draw 1 primitive triangle using 3 vertices)
         glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        // --- ImGui Debug Overlay ---
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::Begin("Vertex Debugger");
+        ImGui::Text("V1: (%.2f, %.2f, %.2f)", -0.5f + objectPosition.x, -0.5f + objectPosition.y, 0.0f + objectPosition.z);
+        ImGui::Text("V2: (%.2f, %.2f, %.2f)", 0.5f + objectPosition.x, -0.5f + objectPosition.y, 0.0f + objectPosition.z);
+        ImGui::Text("V3: (%.2f, %.2f, %.2f)", 0.0f + objectPosition.x, 0.5f + objectPosition.y, 0.0f + objectPosition.z);
+        
+        // Optional: Display the object's origin point for easier reference
+        ImGui::Separator();
+        ImGui::Text("Center: (%.2f, %.2f, %.2f)", objectPosition.x, objectPosition.y, objectPosition.z);
+        
+        ImGui::End();
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // Swap the back buffer to the front screen buffer to display what we drew
         SDL_GL_SwapWindow(window);
@@ -235,6 +326,10 @@ int main(int argc, char* argv[]) {
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteProgram(shaderProgram);
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
 
     SDL_GL_DestroyContext(glContext);
     SDL_DestroyWindow(window);

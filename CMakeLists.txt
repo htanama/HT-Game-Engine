@@ -6,18 +6,32 @@ project(HT_Game_Engine LANGUAGES CXX C)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 1. Source Gathering
+# Define ImGui Path (Assume you put imgui in a folder named 'imgui' in your root)
+set(IMGUI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/imgui")
+
+# Source Gathering
 # Use GLOB_RECURSE to find all .cpp files automatically in the src/ folder.
 # We also manually include glad.c because it is a C library, not a standard project file.
 file(GLOB_RECURSE SOURCES "src/*.cpp")
-add_executable(${PROJECT_NAME} ${SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/glad/src/glad.c")
+set(IMGUI_SOURCES 
+    ${IMGUI_DIR}/imgui.cpp 
+    ${IMGUI_DIR}/imgui_draw.cpp 
+    ${IMGUI_DIR}/imgui_tables.cpp 
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_sdl3.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+)
 
-# 2. Include Paths
+add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/glad/src/glad.c")
+
+# Include Paths
 # PRIVATE means these headers are only needed by this project (not by anything that uses this engine).
 target_include_directories(${PROJECT_NAME} PRIVATE 
     src
     glad/include
-    glm    
+    glm   
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends # Important: Allows you to include the backend headers
 )
 
 # --- WINDOWS SDL3 LINKING & ASSET STAGING ---
