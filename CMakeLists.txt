@@ -22,7 +22,7 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
-add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/glad/src/glad.c")
+add_executable(${PROJECT_NAME} ${SOURCES} ${IMGUI_SOURCES} "${CMAKE_CURRENT_SOURCE_DIR}/glad/src/glad.c" "src/Shader.h")
 
 # Include Paths
 # PRIVATE means these headers are only needed by this project (not by anything that uses this engine).

@@ -1,5 +1,6 @@
 
 #include <glad/glad.h>  // CRITICAL: Always include GLAD before SDL3!
+#include "Shader.h"
 #include <SDL3/SDL.h>
 #include <iostream>
 #include <fstream>
@@ -15,30 +16,30 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
 
-std::string loadShaderSourceFile(const char* filePath) {
-    std::string shaderCode;
-    std::ifstream shaderFile;
-
-    // Configure file streams to explicitly throw exceptions if a read fails
-    shaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-
-    try {
-        shaderFile.open(filePath);
-        std::stringstream shaderStream;
-
-        // Stream the entire file buffer contents directly into our memory stream
-        shaderStream << shaderFile.rdbuf();
-        shaderFile.close();
-
-        // Convert the stream container into a usable C++ string
-        shaderCode = shaderStream.str();
-    }
-    catch (std::ifstream::failure& e) {
-        std::cerr << "CRITICAL ENGINE ERROR: Failed to read shader file at target path: " << filePath << std::endl;
-    }
-
-    return shaderCode;
-}
+//std::string loadShaderSourceFile(const char* filePath) {
+//    std::string shaderCode;
+//    std::ifstream shaderFile;
+//
+//    // Configure file streams to explicitly throw exceptions if a read fails
+//    shaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+//
+//    try {
+//        shaderFile.open(filePath);
+//        std::stringstream shaderStream;
+//
+//        // Stream the entire file buffer contents directly into our memory stream
+//        shaderStream << shaderFile.rdbuf();
+//        shaderFile.close();
+//
+//        // Convert the stream container into a usable C++ string
+//        shaderCode = shaderStream.str();
+//    }
+//    catch (std::ifstream::failure& e) {
+//        std::cerr << "CRITICAL ENGINE ERROR: Failed to read shader file at target path: " << filePath << std::endl;
+//    }
+//
+//    return shaderCode;
+//}
 
 // INPUT MAPPING STRUCTURE
 // We store the state of keys here. This allows the logic to check "is W held?" 
@@ -103,34 +104,7 @@ int main(int argc, char* argv[]) {
     // ==========================================================
     // DYNAMIC SHADER ASSET LOADING & COMPILATION
     // ==========================================================
-
-    // 1. Load the GLSL raw text assets dynamically from your disk directory
-    std::string vertexString = loadShaderSourceFile("shaders/opengl_vertex.glsl");
-    std::string fragmentString = loadShaderSourceFile("shaders/opengl_fragment.glsl");
-
-    // Extract the raw C-style string pointers required by the OpenGL driver
-    const char* vertexShaderSource = vertexString.c_str();
-    const char* fragmentShaderSource = fragmentString.c_str();
-
-    // 2. Compile Vertex Shader on the GPU
-    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-    glCompileShader(vertexShader);
-
-    // 3. Compile Fragment Shader on the GPU
-    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-
-    // 4. Link Shaders into a single executable GPU Shader Program
-    unsigned int shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-
-    // Clean up the individual intermediate shader objects once linked safely
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
+    Shader myShader("shaders/opengl_vertex.glsl", "shaders/opengl_fragment.glsl"); 
 
     bool isRunning = true;
     SDL_Event event;
@@ -249,8 +223,8 @@ int main(int argc, char* argv[]) {
         glClearColor(0.1f, 0.14f, 0.18f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // NEW: Tell the GPU to use our custom shader program
-        glUseProgram(shaderProgram);
+        // PIPELINE EXECUTION
+        myShader.use();
 
         // MODEL MATRIX: Apply movement (Translate) THEN rotation.
         // Order matters: We translate relative to (0,0,0), then rotate around that new spot.
@@ -279,15 +253,9 @@ int main(int argc, char* argv[]) {
         // Projection Matrix: Perspective lens field of view (FOV)
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1024.0f / 768.0f, 0.1f, 100.0f);
 
-        // Retrieve uniform handle locations from our compiled program
-        unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
-        unsigned int viewLoc  = glGetUniformLocation(shaderProgram, "view");
-        unsigned int projLoc  = glGetUniformLocation(shaderProgram, "projection");
-         
-        // Upload C++ matrices directly into the GPU registers
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        myShader.setMat4("model", model);
+        myShader.setMat4("view", view);
+        myShader.setMat4("projection", projection);
 
         // Bind our triangle configuration template 
         glBindVertexArray(VAO);
@@ -325,7 +293,7 @@ int main(int argc, char* argv[]) {
     // Deallocate local GPU buffer IDs cleanly before destroying context
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
-    glDeleteProgram(shaderProgram);
+        
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
