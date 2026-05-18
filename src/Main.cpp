@@ -2,9 +2,43 @@
 #include <glad/glad.h>  // CRITICAL: Always include GLAD before SDL3!
 #include <SDL3/SDL.h>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+
+#include <glm/glm.hpp>                  // Core vector/matrix math types
+#include <glm/gtc/matrix_transform.hpp> // Matrix transformations (translate, rotate, scale, lookAt)
+#include <glm/gtc/type_ptr.hpp>         // Allows us to pass GLM matrices directly to the GPU
+
+std::string loadShaderSourceFile(const char* filePath) {
+    std::string shaderCode;
+    std::ifstream shaderFile;
+
+    // Configure file streams to explicitly throw exceptions if a read fails
+    shaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+
+    try {
+        shaderFile.open(filePath);
+        std::stringstream shaderStream;
+
+        // Stream the entire file buffer contents directly into our memory stream
+        shaderStream << shaderFile.rdbuf();
+        shaderFile.close();
+
+        // Convert the stream container into a usable C++ string
+        shaderCode = shaderStream.str();
+    }
+    catch (std::ifstream::failure& e) {
+        std::cerr << "CRITICAL ENGINE ERROR: Failed to read shader file at target path: " << filePath << std::endl;
+    }
+
+    return shaderCode;
+}
+
 
 
 int main(int argc, char* argv[]) {
+        
     // Initialize SDL3 Video Subsystem
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "SDL3 Initialization Failed: " << SDL_GetError() << std::endl;
@@ -54,45 +88,36 @@ int main(int argc, char* argv[]) {
     std::cout << "VENDOR:   " << glGetString(GL_VENDOR) << std::endl;
     std::cout << "RENDERER: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "VERSION:  " << glGetString(GL_VERSION) << std::endl;
-
-    // Keep the engine sandbox alive for 4 seconds to view terminal metrics
-    // SDL_Delay(4000);
-
+        
     // ==========================================================
-    // LESSON 2: SHADER SOURCE & COMPILATION
+    // DYNAMIC SHADER ASSET LOADING & COMPILATION
     // ==========================================================
 
-    // 1. Vertex Shader Source String Literal
-    const char* vertexShaderSource = "#version 460 core\n"
-        "layout (location = 0) in vec3 aPos;\n"
-        "void main() {\n"
-        "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-        "}\n\0";
+    // 1. Load the GLSL raw text assets dynamically from your disk directory
+    std::string vertexString = loadShaderSourceFile("shaders/opengl_vertex.glsl");
+    std::string fragmentString = loadShaderSourceFile("shaders/opengl_fragment.glsl");
 
-    // 2. Fragment Shader Source String Literal (Bright Orange/Amber)
-    const char* fragmentShaderSource = "#version 460 core\n"
-        "out vec4 FragColor;\n"
-        "void main() {\n"
-        "   FragColor = vec4(1.0f, 0.5f, 0.0f, 1.0f);\n"
-        "}\n\0";
+    // Extract the raw C-style string pointers required by the OpenGL driver
+    const char* vertexShaderSource = vertexString.c_str();
+    const char* fragmentShaderSource = fragmentString.c_str();
 
-    // 3. Compile Vertex Shader on the GPU
+    // 2. Compile Vertex Shader on the GPU
     unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
     glCompileShader(vertexShader);
 
-    // 4. Compile Fragment Shader on the GPU
+    // 3. Compile Fragment Shader on the GPU
     unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
     glCompileShader(fragmentShader);
 
-    // 5. Link Shaders into a single executable GPU Shader Program
+    // 4. Link Shaders into a single executable GPU Shader Program
     unsigned int shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
     glLinkProgram(shaderProgram);
 
-    // Clean up the individual intermediate shader objects once linked
+    // Clean up the individual intermediate shader objects once linked safely
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
@@ -105,6 +130,7 @@ int main(int argc, char* argv[]) {
          0.5f, -0.5f, 0.0f, // Bottom-Right point
          0.0f,  0.5f, 0.0f  // Top-Center Point
     };
+
     unsigned int VAO, VBO; // Vertex Buffer Object
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
@@ -154,10 +180,47 @@ int main(int argc, char* argv[]) {
         // NEW: Tell the GPU to use our custom shader program
         glUseProgram(shaderProgram);
 
-        // NEW: Bind our triangle configuration template 
+        // Transformation Calculations
+
+        // Model Matrix: Spin the triangle over time on the Y-axis
+        glm::mat4 model = glm::mat4(1.0f);
+
+        // this line is calculating the exact number of seconds that have passed since your game engine booted up
+        float time = (float)SDL_GetTicks() / 1000.0f;
+
+        // Direction for the rotation matrix
+        model = glm::rotate(model, time * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+        // =================================================================
+        // VIEW TRANSFORMATION (THE VIEW MATRIX)
+        // =================================================================
+        // Conceptually: This creates the illusion of a camera vantage point.
+        // Mathematically: OpenGL has no camera; the viewer's eye is welded to (0,0,0).
+        // Therefore, to make the player feel like they stepped BACK by +3.0 units, 
+        // we must translate the entire WORLD's coordinates BACKWARD by -3.0 units 
+        // down the Right-Handed negative Z-axis.
+        glm::mat4 view = glm::mat4(1.0f);
+
+        // Right-Handed Cooridnate system move the objeectd away from the Screen or closer to the screen
+        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f)); 
+       
+        // Projection Matrix: Perspective lens field of view (FOV)
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1024.0f / 768.0f, 0.1f, 100.0f);
+
+        // Retrieve uniform handle locations from our compiled program
+        unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
+        unsigned int viewLoc  = glGetUniformLocation(shaderProgram, "view");
+        unsigned int projLoc  = glGetUniformLocation(shaderProgram, "projection");
+         
+        // Upload C++ matrices directly into the GPU registers
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+        // Bind our triangle configuration template 
         glBindVertexArray(VAO);
 
-        // NEW: Issue the hardware drawing command (Draw 1 primitive triangle using 3 vertices)
+        // Issue the hardware drawing command (Draw 1 primitive triangle using 3 vertices)
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
         // Swap the back buffer to the front screen buffer to display what we drew
@@ -171,6 +234,7 @@ int main(int argc, char* argv[]) {
     // Deallocate local GPU buffer IDs cleanly before destroying context
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
+    glDeleteProgram(shaderProgram);
 
     SDL_GL_DestroyContext(glContext);
     SDL_DestroyWindow(window);
