@@ -1,12 +1,15 @@
-
 #include <glad/glad.h>  // CRITICAL: Always include GLAD before SDL3!
 #include "Shader.h"
 #include "Mesh.h"
+#include "Camera.h"
+#include "CubeBuilder.h"
+
 #include <SDL3/SDL.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <string>
+
 
 #include <glm/glm.hpp>                  // Core vector/matrix math types
 #include <glm/gtc/matrix_transform.hpp> // Matrix transformations (translate, rotate, scale, lookAt)
@@ -82,12 +85,13 @@ int main(int argc, char* argv[]) {
     // DYNAMIC SHADER ASSET LOADING & COMPILATION
     // ==========================================================
     Shader myShader("shaders/opengl_vertex.glsl", "shaders/opengl_fragment.glsl"); 
+    Camera myCamera;
 
     bool isRunning = true;
     SDL_Event event;
 
     // Define our raw shape date in CPU memory (X, Y, Z)
-    float vertices[] = {
+    float triangleVertices[] = {
         -0.5f, -0.5f, 0.0f, // Bottom-Left point
          0.5f, -0.5f, 0.0f, // Bottom-Right point
          0.0f,  0.5f, 0.0f  // Top-Center Point
@@ -105,10 +109,18 @@ int main(int argc, char* argv[]) {
          0.5f,  0.5f, 0.0f  // Top Right
     };
 
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+    GetCubeData(vertices, indices);
+
     // Instantiate the mesh object
-    Mesh triangle(vertices, sizeof(vertices) / sizeof(float));
+    // Mesh triangle(triangleVertices, sizeof(triangleVertices) / sizeof(float));
     
-    Mesh square(squareVertices, 18);
+    //Mesh square(squareVertices, 18);
+
+    // 36 vertices for the cube, each with 3 floats (x,y,z)
+    Mesh cube(vertices, indices);
+
     
     // --- ImGui Initialization ---
     IMGUI_CHECKVERSION();
@@ -133,6 +145,14 @@ int main(int argc, char* argv[]) {
     glm::vec3 objectPosition = glm::vec3(-1.0f, 0.0f, 0.0f); // Current translation
     float moveSpeed = 0.01f;                               // How fast we move
 
+    // Enable depth testing for correct 3D rendering (closer objects should occlude farther ones)
+    glEnable(GL_DEPTH_TEST); 
+
+    glDepthFunc(GL_LESS); // Accept fragment if it is closer to the camera than the former one
+    
+    // Wireframe mode for debugging
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
+    
     // The Master Game Loop
     while (isRunning) {
         // Process Native OS Input & Events
@@ -190,8 +210,10 @@ int main(int argc, char* argv[]) {
            
         // Render Frames via OpenGL GPU Buffers
         // Clear the screen with a beautiful, custom gray-blue background color
-        glClearColor(0.1f, 0.14f, 0.18f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClearColor(0.1f, 0.14f, 0.18f, 1.0f);    
+
+        // Clear the depth buffer as well for 3D rendering
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
 
         // PIPELINE EXECUTION
         myShader.use();
@@ -199,20 +221,25 @@ int main(int argc, char* argv[]) {
         // Draw Triangle on the LEFT (x = -0.5)
         // MODEL MATRIX: Apply movement (Translate) THEN rotation.
         // Order matters: We translate relative to (0,0,0), then rotate around that new spot.
-        glm::mat4 modelTriangle = glm::mat4(1.0f);
-        modelTriangle = glm::translate(modelTriangle, objectPosition);
+        // glm::mat4 modelTriangle = glm::mat4(1.0f);
+        // modelTriangle = glm::translate(modelTriangle, objectPosition);
 
         // this line is calculating the exact number of seconds that have passed since your game engine booted up
         float time = (float)SDL_GetTicks() / 1000.0f;
 
+        // Start with an identity matrix (no transformation)
+        glm::mat4 cubeModel = glm::mat4(1.0f); 
+
+        cubeModel = glm::translate(cubeModel, objectPosition);
+
         // Direction for the rotation matrix
-        modelTriangle = glm::rotate(modelTriangle, time * glm::radians(50.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+        cubeModel = glm::rotate(cubeModel, time * glm::radians(50.0f), glm::vec3(0.5f, -1.0f, 0.0f));
 
-
+   
         // Draw Square on the RIGHT (x = 0.8)
-        glm::mat4 modelSquare = glm::translate(glm::mat4(1.0f), glm::vec3(0.8f, 0.0f, 0.0f));
-        myShader.setMat4("model", modelSquare);
-        square.draw();
+        // glm::mat4 modelSquare = glm::translate(glm::mat4(1.0f), glm::vec3(0.8f, 0.0f, 0.0f));
+        // myShader.setMat4("model", modelSquare);
+        // square.draw();
 
 
         // =================================================================
@@ -223,21 +250,24 @@ int main(int argc, char* argv[]) {
         // Therefore, to make the player feel like they stepped BACK by +3.0 units, 
         // we must translate the entire WORLD's coordinates BACKWARD by -3.0 units 
         // down the Right-Handed negative Z-axis.
-        glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f));
+        
+        //glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f));
+        glm::mat4 view = myCamera.GetViewMatrix();
 
         // Right-Handed Cooridnate system move the objeectd away from the Screen or closer to the screen
-        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f)); 
+        // view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f)); 
        
         // Projection Matrix: Perspective lens field of view (FOV)
-        glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1024.0f / 768.0f, 0.1f, 100.0f);
+        //glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1024.0f / 768.0f, 0.1f, 100.0f);
+        glm::mat4 projection = myCamera.GetProjectionMatrix(1024.0f / 768.0f);
 
-        myShader.setMat4("model", modelTriangle);
+        myShader.setMat4("model", cubeModel);
         myShader.setMat4("view", view);
         myShader.setMat4("projection", projection);
 
         // --- RENDER MESH ---
         // Instead of binding VAO and drawing manually, use the object!
-        triangle.draw();
+        cube.draw();
 
         // --- ImGui Debug Overlay ---
         ImGui_ImplOpenGL3_NewFrame();

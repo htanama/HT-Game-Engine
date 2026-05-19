@@ -57,3 +57,21 @@ cmake --build .
 ### Pro-Tip for Contributors
 
 This project uses a custom automated **Asset Pipeline**. Every time you build, the `CMakeLists.txt` automatically syncs your `shaders/` directory from the source folder into your build output folder. This ensures your engine always has access to the latest assets without manual copying.
+
+
+### Option 3: Windows Batch Script (Simple & Direct)
+
+For developers who prefer a transparent, zero-dependency build process on Windows, a custom build.bat script is provided. This script manages environment setup, library linking, and asset synchronization automatically.
+
+    Open Prompt: Search for the "x64 Native Tools Command Prompt for VS 2022" in your Windows Start menu.
+
+    Navigate: Change your directory to the HT-Game-Engine root folder.
+
+    Build: Run the script:
+    DOS
+
+    build.bat
+
+    Result: The script will automatically create a build/ directory, compile the engine, copy the required SDL3.dll and shaders/ assets, and generate the HT_Game_Engine.exe ready for execution.
+
+Note: This method is highly recommended if you wish to see exactly how your libraries and source files are being linked by the Microsoft C++ compiler (cl.exe).
