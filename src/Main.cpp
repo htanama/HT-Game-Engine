@@ -1,6 +1,7 @@
 
 #include <glad/glad.h>  // CRITICAL: Always include GLAD before SDL3!
 #include "Shader.h"
+#include "Mesh.h"
 #include <SDL3/SDL.h>
 #include <iostream>
 #include <fstream>
@@ -16,30 +17,6 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
 
-//std::string loadShaderSourceFile(const char* filePath) {
-//    std::string shaderCode;
-//    std::ifstream shaderFile;
-//
-//    // Configure file streams to explicitly throw exceptions if a read fails
-//    shaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-//
-//    try {
-//        shaderFile.open(filePath);
-//        std::stringstream shaderStream;
-//
-//        // Stream the entire file buffer contents directly into our memory stream
-//        shaderStream << shaderFile.rdbuf();
-//        shaderFile.close();
-//
-//        // Convert the stream container into a usable C++ string
-//        shaderCode = shaderStream.str();
-//    }
-//    catch (std::ifstream::failure& e) {
-//        std::cerr << "CRITICAL ENGINE ERROR: Failed to read shader file at target path: " << filePath << std::endl;
-//    }
-//
-//    return shaderCode;
-//}
 
 // INPUT MAPPING STRUCTURE
 // We store the state of keys here. This allows the logic to check "is W held?" 
@@ -116,29 +93,23 @@ int main(int argc, char* argv[]) {
          0.0f,  0.5f, 0.0f  // Top-Center Point
     };
 
-    unsigned int VAO, VBO; // Vertex Buffer Object
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
 
-    // --- Record Configuration Matrix ---
-    glBindVertexArray(VAO);
+    // Square centered at 0,0
+    float squareVertices[] = {
+        -0.5f,  0.5f, 0.0f, // Top Left
+        -0.5f, -0.5f, 0.0f, // Bottom Left
+         0.5f, -0.5f, 0.0f, // Bottom Right
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        -0.5f,  0.5f, 0.0f, // Top Left
+         0.5f, -0.5f, 0.0f, // Bottom Right
+         0.5f,  0.5f, 0.0f  // Top Right
+    };
 
-    // Note: GL_STATIC_DRAW tells the GPU that we will set this data once and draw it 
-    // many times, which optimizes it for extreme rendering speeds inside the card.
-
-    // Define the Memory Layout Link (Vertex Attributes)
-    // Tells the GPU: "Hey, take data location 0, look at 3 floats at a time, 
-    // and the gap between each point is 3 times the size of a float."
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // Clean Unbind Context
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-
+    // Instantiate the mesh object
+    Mesh triangle(vertices, sizeof(vertices) / sizeof(float));
+    
+    Mesh square(squareVertices, 18);
+    
     // --- ImGui Initialization ---
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -159,7 +130,7 @@ int main(int argc, char* argv[]) {
 
     // --- SETUP INPUT & POSITION ---
     InputState input;
-    glm::vec3 objectPosition = glm::vec3(0.0f, 0.0f, 0.0f); // Current translation
+    glm::vec3 objectPosition = glm::vec3(-1.0f, 0.0f, 0.0f); // Current translation
     float moveSpeed = 0.01f;                               // How fast we move
 
     // The Master Game Loop
@@ -216,8 +187,7 @@ int main(int argc, char* argv[]) {
                 << "V3: " << v3.x << "," << v3.y << std::endl;
             lastTime = SDL_GetTicks();
         }
-
-
+           
         // Render Frames via OpenGL GPU Buffers
         // Clear the screen with a beautiful, custom gray-blue background color
         glClearColor(0.1f, 0.14f, 0.18f, 1.0f);
@@ -226,16 +196,24 @@ int main(int argc, char* argv[]) {
         // PIPELINE EXECUTION
         myShader.use();
 
+        // Draw Triangle on the LEFT (x = -0.5)
         // MODEL MATRIX: Apply movement (Translate) THEN rotation.
         // Order matters: We translate relative to (0,0,0), then rotate around that new spot.
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, objectPosition);
+        glm::mat4 modelTriangle = glm::mat4(1.0f);
+        modelTriangle = glm::translate(modelTriangle, objectPosition);
 
         // this line is calculating the exact number of seconds that have passed since your game engine booted up
         float time = (float)SDL_GetTicks() / 1000.0f;
 
         // Direction for the rotation matrix
-        model = glm::rotate(model, time * glm::radians(50.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+        modelTriangle = glm::rotate(modelTriangle, time * glm::radians(50.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+
+
+        // Draw Square on the RIGHT (x = 0.8)
+        glm::mat4 modelSquare = glm::translate(glm::mat4(1.0f), glm::vec3(0.8f, 0.0f, 0.0f));
+        myShader.setMat4("model", modelSquare);
+        square.draw();
+
 
         // =================================================================
         // VIEW TRANSFORMATION (THE VIEW MATRIX)
@@ -253,15 +231,13 @@ int main(int argc, char* argv[]) {
         // Projection Matrix: Perspective lens field of view (FOV)
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1024.0f / 768.0f, 0.1f, 100.0f);
 
-        myShader.setMat4("model", model);
+        myShader.setMat4("model", modelTriangle);
         myShader.setMat4("view", view);
         myShader.setMat4("projection", projection);
 
-        // Bind our triangle configuration template 
-        glBindVertexArray(VAO);
-
-        // Issue the hardware drawing command (Draw 1 primitive triangle using 3 vertices)
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        // --- RENDER MESH ---
+        // Instead of binding VAO and drawing manually, use the object!
+        triangle.draw();
 
         // --- ImGui Debug Overlay ---
         ImGui_ImplOpenGL3_NewFrame();
@@ -290,10 +266,6 @@ int main(int argc, char* argv[]) {
     // Expliciet Clean Resource
     std::cout << "HT Game Engine shutting down cleanly..." << std::endl;
 
-    // Deallocate local GPU buffer IDs cleanly before destroying context
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-        
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
