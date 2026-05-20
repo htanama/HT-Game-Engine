@@ -1,12 +1,15 @@
 #version 460 core
 
-in vec3 ourColor; // Received from vertex shader
+in vec3 ourColor; // This comes from the Vertex Shader
 out vec4 FragColor;
 
-void main() {
-    // Output our custom bright amber/orange color
-    // FragColor = vec4(1.0f, 0.5f, 0.0f, 1.0f);
+uniform bool isVertexColor; // This is the toggle
 
-    FragColor = vec4(ourColor, 1.0f);
+void main() {
+    if (isVertexColor) {
+        FragColor = vec4(ourColor, 1.0f);
+    } else {
+        FragColor = vec4(1.0f, 0.5f, 0.0f, 1.0f); // Solid Orange
+    }   
     
 }

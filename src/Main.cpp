@@ -109,19 +109,66 @@ int main(int argc, char* argv[]) {
          0.5f,  0.5f, 0.0f  // Top Right
     };
 
+    // 36 vertices (6 faces * 2 triangles/face * 3 vertices/triangle)
+    float cubeVertices[] = {
+        // Front face
+        -0.5f, -0.5f,  0.5f,
+        0.5f, -0.5f,  0.5f,
+        0.5f,  0.5f,  0.5f,
+        0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,
+        // Back face
+        -0.5f, -0.5f, -0.5f,
+        0.5f, -0.5f, -0.5f,
+        0.5f,  0.5f, -0.5f,
+        0.5f,  0.5f, -0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        // Left face
+        -0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        // Right face
+        0.5f,  0.5f,  0.5f,
+        0.5f,  0.5f, -0.5f,
+        0.5f, -0.5f, -0.5f,
+        0.5f, -0.5f, -0.5f,
+        0.5f, -0.5f,  0.5f,
+        0.5f,  0.5f,  0.5f,
+        // Bottom face
+        -0.5f, -0.5f, -0.5f,
+        0.5f, -0.5f, -0.5f,
+        0.5f, -0.5f,  0.5f,
+        0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f, -0.5f,
+        // Top face
+        -0.5f,  0.5f, -0.5f,
+        0.5f,  0.5f, -0.5f,
+        0.5f,  0.5f,  0.5f,
+        0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f, -0.5f
+    };
+    
+    // 36 vertices for the cube, each with 3 floats (x,y,z)    
+    Mesh cube(cubeVertices, 108); // 108 floats total (36 vertices * 3 floats each)
+    
+
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
-    GetCubeData(vertices, indices);
+    GetCubeData(vertices, indices);    
+    Mesh cube2(vertices, indices);
 
     // Instantiate the mesh object
-    // Mesh triangle(triangleVertices, sizeof(triangleVertices) / sizeof(float));
-    
+    // Mesh triangle(triangleVertices, sizeof(triangleVertices) / sizeof(float));    
     //Mesh square(squareVertices, 18);
+   
 
-    // 36 vertices for the cube, each with 3 floats (x,y,z)
-    Mesh cube(vertices, indices);
-
-    
     // --- ImGui Initialization ---
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -142,8 +189,10 @@ int main(int argc, char* argv[]) {
 
     // --- SETUP INPUT & POSITION ---
     InputState input;
-    glm::vec3 objectPosition = glm::vec3(-1.0f, 0.0f, 0.0f); // Current translation
-    float moveSpeed = 0.01f;                               // How fast we move
+    
+    // Cube 1 position and movement speed
+    glm::vec3 objectPosition = glm::vec3(-1.0f, 0.5f, 0.0f); // Current translation
+    float moveSpeed = 0.01f;             
 
     // Enable depth testing for correct 3D rendering (closer objects should occlude farther ones)
     glEnable(GL_DEPTH_TEST); 
@@ -213,11 +262,8 @@ int main(int argc, char* argv[]) {
         glClearColor(0.1f, 0.14f, 0.18f, 1.0f);    
 
         // Clear the depth buffer as well for 3D rendering
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
-
-        // PIPELINE EXECUTION
-        myShader.use();
-
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);         
+     
         // Draw Triangle on the LEFT (x = -0.5)
         // MODEL MATRIX: Apply movement (Translate) THEN rotation.
         // Order matters: We translate relative to (0,0,0), then rotate around that new spot.
@@ -261,6 +307,8 @@ int main(int argc, char* argv[]) {
         //glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1024.0f / 768.0f, 0.1f, 100.0f);
         glm::mat4 projection = myCamera.GetProjectionMatrix(1024.0f / 768.0f);
 
+        // PIPELINE EXECUTION
+        myShader.use();
         myShader.setMat4("model", cubeModel);
         myShader.setMat4("view", view);
         myShader.setMat4("projection", projection);
@@ -268,6 +316,12 @@ int main(int argc, char* argv[]) {
         // --- RENDER MESH ---
         // Instead of binding VAO and drawing manually, use the object!
         cube.draw();
+
+        // Draw Cube 2 (Generated via CubeBuilder)
+        glm::mat4 modelCube2 = glm::mat4(1.0f);
+        modelCube2 = glm::translate(modelCube2, glm::vec3(0.5f, 0.0f, 0.0f));  // Move right
+        myShader.setMat4("model", modelCube2);
+        cube2.draw();
 
         // --- ImGui Debug Overlay ---
         ImGui_ImplOpenGL3_NewFrame();
