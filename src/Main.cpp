@@ -40,8 +40,8 @@ SDL_GLContext glContext = NULL;
 Entity cube1;
 
 int SDL_Initializaton(){
-    // Initialize SDL3 Video Subsystem
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    // Initialize SDL3 Video Subsystem retrun true if successful, false if failed
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
         std::cerr << "SDL3 Initialization Failed: " << SDL_GetError() << std::endl;
         return -1;
     }
@@ -83,6 +83,9 @@ int SDL_Initializaton(){
         SDL_Quit();
         return -1;
     }
+
+    // Disable VSync for uncapped frame rates (for testing)
+    SDL_GL_SetSwapInterval(0); 
 
     return 0; // Success
 }
@@ -142,15 +145,26 @@ int main(int argc, char* argv[]) {
 
     // Accept fragment if it is closer to the camera than the former one
     glDepthFunc(GL_LESS); 
-    
-    // Wireframe mode for debugging
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
-    
+       
     bool isRunning = true;
     SDL_Event event;
+    bool isDebug = false; // Toggle with TAB key 
+
+    // Outside your while loop:
+    Uint64 lastTime = SDL_GetTicks();
+  
+    // For controlling how often we print debug info to the console
+    static float lastPrintTime = 0.0f; 
+    static float fps = 0.0f;
 
     // The Master Game Loop
     while (isRunning) {
+        // Calculate deltaTime for smooth movement regardless of frame rate
+        Uint64 currentTime = SDL_GetTicks();
+        float deltaTime = (currentTime - lastTime) / 1000.0f; // Convert milliseconds to seconds
+        lastTime = currentTime;
+     
+
         // Process Native OS Input & Events
         while (SDL_PollEvent(&event)) {
             // Forward the event to ImGui
@@ -171,9 +185,17 @@ int main(int argc, char* argv[]) {
                     case SDLK_Q:      input.forward = isDown; break; // Move closer
                     case SDLK_E:      input.backward = isDown; break; // Move further
                     case SDLK_ESCAPE: if (isDown) isRunning = false; break;
+                    case SDLK_TAB: if (isDown) isDebug = !isDebug; break;
                 }
                 
             }
+        }
+        
+        if(isDebug){
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Wireframe mode for debugging
+        }
+        else{
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Solid mode for normal rendering
         }
 
         // LOGIC UPDATE: Apply movement to the ECS entity        
@@ -197,6 +219,9 @@ int main(int argc, char* argv[]) {
         myShader.setMat4("view", myCamera.GetViewMatrix()); // Send the View Matrix to the shader
         myShader.setMat4("projection", myCamera.GetProjectionMatrix(1024.0f / 768.0f)); // Send the Projection Matrix to the shader
         
+        // Run Movement System to update positions based on velocity (if any)
+        MovementSystem(registry, deltaTime);
+
         // Render all entities with a Transform and Renderable component
         RenderSystem(registry, myShader, time); 
        
@@ -212,15 +237,24 @@ int main(int argc, char* argv[]) {
         glm::vec3 v2 = glm::vec3( 0.5f, -0.5f, 0.0f) + pos;
         glm::vec3 v3 = glm::vec3( 0.0f,  0.5f, 0.0f) + pos;
 
-        // Print to console once per second (so it doesn't spam your terminal)
-        static Uint64 lastTime = 0;
-        if (SDL_GetTicks() - lastTime > 1000) {
+         
+
+        if (currentTime - lastPrintTime >= 1000) { // Print every 1 second    
+            fps = (deltaTime > 0.0f) ? (1.0f / deltaTime) : 0.0f;                        
+            std::cout << "FPS: " << fps << std::endl;
             std::cout << "V1: " << v1.x << "," << v1.y << " | "
                 << "V2: " << v2.x << "," << v2.y << " | "
                 << "V3: " << v3.x << "," << v3.y << std::endl;
-            lastTime = SDL_GetTicks();
+            lastPrintTime = currentTime;
         }
 
+        // ImGui window for FPS and frame time debugging
+        ImGui::Begin("Engine Stats");
+        ImGui::Text("FPS: %.0f", fps);
+        ImGui::Text("Frame Time: %.2f ms", deltaTime * 1000.0f);   
+        ImGui::End(); // ImGui window for FPS end.
+
+        // ImGui Window to display vertex positions and engine stats
         ImGui::Begin("Vertex Debugger");        
         ImGui::Text("V1: (%.2f, %.2f, %.2f)", v1.x, v1.y, v1.z);
         ImGui::Text("V2: (%.2f, %.2f, %.2f)", v2.x, v2.y, v2.z);
@@ -228,6 +262,8 @@ int main(int argc, char* argv[]) {
         ImGui::Separator();
         ImGui::Text("Center: (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
         ImGui::End();
+
+       
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
