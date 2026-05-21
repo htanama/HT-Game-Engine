@@ -16,3 +16,16 @@ void RenderSystem(Registry& reg, Shader& shader, float time) {
         }
     }
 }
+
+void MovementSystem(Registry& reg, float deltaTime) {
+    // Iterate through the vector using an index to get the Entity ID
+    for (size_t entity = 0; entity < reg.hasTransform.size(); ++entity) {
+        
+        // Ensure the entity actually has both a Transform and a Velocity component
+        if (reg.hasTransform[entity] && reg.hasVelocity[entity]) {
+            
+            // Apply the velocity: Position += Velocity * DeltaTime
+            reg.transforms[entity].position += reg.velocities[entity].value * deltaTime;
+        }
+    }
+}
