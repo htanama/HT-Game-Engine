@@ -1,4 +1,7 @@
 #include <glad/glad.h>  // CRITICAL: Always include GLAD before SDL3!
+
+#include "ECS.h"
+#include "Systems.h"
 #include "Shader.h"
 #include "Mesh.h"
 #include "Camera.h"
@@ -10,7 +13,6 @@
 #include <sstream>
 #include <string>
 
-
 #include <glm/glm.hpp>                  // Core vector/matrix math types
 #include <glm/gtc/matrix_transform.hpp> // Matrix transformations (translate, rotate, scale, lookAt)
 #include <glm/gtc/type_ptr.hpp>         // Allows us to pass GLM matrices directly to the GPU
@@ -20,6 +22,10 @@
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
 
+#define WINDOW_WIDTH 1920
+#define WINDOW_HEIGHT 1080
+
+void SetupScene(Registry &registry, Mesh &cubeMesh);
 
 // INPUT MAPPING STRUCTURE
 // We store the state of keys here. This allows the logic to check "is W held?" 
@@ -29,8 +35,11 @@ struct InputState {
     bool forward = false, backward = false;
 };
 
-int main(int argc, char* argv[]) {
-        
+SDL_Window* window = nullptr;
+SDL_GLContext glContext = NULL;
+Entity cube1;
+
+int SDL_Initializaton(){
     // Initialize SDL3 Video Subsystem
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "SDL3 Initialization Failed: " << SDL_GetError() << std::endl;
@@ -43,10 +52,10 @@ int main(int argc, char* argv[]) {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
     // Create the Native Window Context
-    SDL_Window* window = SDL_CreateWindow(
+    window = SDL_CreateWindow(
         "HT Game Engine - Engine Context Verified",
-        1024,
-        768,
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
         SDL_WINDOW_OPENGL
     );
 
@@ -57,7 +66,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Create the OpenGL Context bound to our Window
-    SDL_GLContext glContext = SDL_GL_CreateContext(window);
+    glContext = SDL_GL_CreateContext(window);
     if (!glContext) {
         std::cerr << "Failed to Create OpenGL Context: " << SDL_GetError() << std::endl;
         SDL_GL_DestroyContext(glContext);
@@ -75,6 +84,12 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
+    return 0; // Success
+}
+
+int main(int argc, char* argv[]) {        
+     SDL_Initializaton();
+ 
     // SUCCESS! Query the GPU to prove we are running hardware acceleration
     std::cout << "HT Game Engine Initialization Cleanly!" << std::endl;
     std::cout << "VENDOR:   " << glGetString(GL_VENDOR) << std::endl;
@@ -85,90 +100,21 @@ int main(int argc, char* argv[]) {
     // DYNAMIC SHADER ASSET LOADING & COMPILATION
     // ==========================================================
     Shader myShader("shaders/opengl_vertex.glsl", "shaders/opengl_fragment.glsl"); 
-    Camera myCamera;
+    Camera myCamera;   
 
-    bool isRunning = true;
-    SDL_Event event;
-
-    // Define our raw shape date in CPU memory (X, Y, Z)
-    float triangleVertices[] = {
-        -0.5f, -0.5f, 0.0f, // Bottom-Left point
-         0.5f, -0.5f, 0.0f, // Bottom-Right point
-         0.0f,  0.5f, 0.0f  // Top-Center Point
-    };
-
-
-    // Square centered at 0,0
-    float squareVertices[] = {
-        -0.5f,  0.5f, 0.0f, // Top Left
-        -0.5f, -0.5f, 0.0f, // Bottom Left
-         0.5f, -0.5f, 0.0f, // Bottom Right
-
-        -0.5f,  0.5f, 0.0f, // Top Left
-         0.5f, -0.5f, 0.0f, // Bottom Right
-         0.5f,  0.5f, 0.0f  // Top Right
-    };
-
-    // 36 vertices (6 faces * 2 triangles/face * 3 vertices/triangle)
-    float cubeVertices[] = {
-        // Front face
-        -0.5f, -0.5f,  0.5f,
-        0.5f, -0.5f,  0.5f,
-        0.5f,  0.5f,  0.5f,
-        0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-        -0.5f, -0.5f,  0.5f,
-        // Back face
-        -0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f,  0.5f, -0.5f,
-        0.5f,  0.5f, -0.5f,
-        -0.5f,  0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        // Left face
-        -0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-        // Right face
-        0.5f,  0.5f,  0.5f,
-        0.5f,  0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f,  0.5f,
-        0.5f,  0.5f,  0.5f,
-        // Bottom face
-        -0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f, -0.5f,
-        0.5f, -0.5f,  0.5f,
-        0.5f, -0.5f,  0.5f,
-        -0.5f, -0.5f,  0.5f,
-        -0.5f, -0.5f, -0.5f,
-        // Top face
-        -0.5f,  0.5f, -0.5f,
-        0.5f,  0.5f, -0.5f,
-        0.5f,  0.5f,  0.5f,
-        0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f, -0.5f
-    };
-    
-    // 36 vertices for the cube, each with 3 floats (x,y,z)    
-    Mesh cube(cubeVertices, 108); // 108 floats total (36 vertices * 3 floats each)
-    
-
+     // --- SETUP MESHES ---
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
-    GetCubeData(vertices, indices);    
-    Mesh cube2(vertices, indices);
+    GetCubeData(vertices, indices);
+    Mesh cubeMesh(vertices, indices);
 
-    // Instantiate the mesh object
-    // Mesh triangle(triangleVertices, sizeof(triangleVertices) / sizeof(float));    
-    //Mesh square(squareVertices, 18);
-   
+    // --- SETUP ECS REGISTRY ---
+    Registry registry;
 
+    // Create entities and assign them components (e.g., Transform, Renderable)
+    SetupScene(registry, cubeMesh); 
+
+    
     // --- ImGui Initialization ---
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -188,20 +134,21 @@ int main(int argc, char* argv[]) {
     // ImGui::GetStyle().ScaleAllSizes(2.0f); // 2.0x zoom
 
     // --- SETUP INPUT & POSITION ---
-    InputState input;
-    
-    // Cube 1 position and movement speed
-    glm::vec3 objectPosition = glm::vec3(-1.0f, 0.5f, 0.0f); // Current translation
+    InputState input;   
     float moveSpeed = 0.01f;             
 
     // Enable depth testing for correct 3D rendering (closer objects should occlude farther ones)
     glEnable(GL_DEPTH_TEST); 
 
-    glDepthFunc(GL_LESS); // Accept fragment if it is closer to the camera than the former one
+    // Accept fragment if it is closer to the camera than the former one
+    glDepthFunc(GL_LESS); 
     
     // Wireframe mode for debugging
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
     
+    bool isRunning = true;
+    SDL_Event event;
+
     // The Master Game Loop
     while (isRunning) {
         // Process Native OS Input & Events
@@ -216,37 +163,54 @@ int main(int argc, char* argv[]) {
             // Handle Keyboard: KEY_DOWN sets state to true, KEY_UP sets it to false.
             else if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {                
                 bool isDown = (event.type == SDL_EVENT_KEY_DOWN);
-
-                switch (event.key.key)
-                {
-                case SDLK_W:      input.up = isDown; break;
-                case SDLK_S:      input.down = isDown; break;
-                case SDLK_A:      input.left = isDown; break;
-                case SDLK_D:      input.right = isDown; break;
-                case SDLK_Q:      input.forward = isDown; break; // Move closer
-                case SDLK_E:      input.backward = isDown; break; // Move further
-                case SDLK_ESCAPE: if (isDown) isRunning = false; break;
+                switch (event.key.key){
+                    case SDLK_W:      input.up = isDown; break;
+                    case SDLK_S:      input.down = isDown; break;
+                    case SDLK_A:      input.left = isDown; break;
+                    case SDLK_D:      input.right = isDown; break;
+                    case SDLK_Q:      input.forward = isDown; break; // Move closer
+                    case SDLK_E:      input.backward = isDown; break; // Move further
+                    case SDLK_ESCAPE: if (isDown) isRunning = false; break;
                 }
                 
             }
         }
 
-        // LOGIC UPDATE
-        // We use the 'input' struct to update our objectPosition.
-        // This is decoupled from the event loop, making it framerate-stable.
-        if (input.up)       objectPosition.y += moveSpeed;
-        if (input.down)     objectPosition.y -= moveSpeed;
-        if (input.left)     objectPosition.x -= moveSpeed;
-        if (input.right)    objectPosition.x += moveSpeed;
-        if (input.forward)  objectPosition.z += moveSpeed;
-        if (input.backward) objectPosition.z -= moveSpeed;
+        // LOGIC UPDATE: Apply movement to the ECS entity        
+        if (input.up)       registry.transforms[cube1].position.y += moveSpeed;
+        if (input.down)     registry.transforms[cube1].position.y -= moveSpeed;
+        if (input.left)     registry.transforms[cube1].position.x -= moveSpeed;
+        if (input.right)    registry.transforms[cube1].position.x += moveSpeed;
+        if (input.forward)  registry.transforms[cube1].position.z += moveSpeed;
+        if (input.backward) registry.transforms[cube1].position.z -= moveSpeed;    
+           
+        // this line is calculating the exact number of seconds that have passed since your game engine booted up
+        float time = (float)SDL_GetTicks() / 1000.0f;
 
-        // --- DEBUG: CALCULATE CURRENT VERTEX POSITIONS ---
-        // Since we are applying translation to the whole model, we add the current
-        // 'objectPosition' to our original raw coordinates.
-        glm::vec3 v1 = glm::vec3(-0.5f, -0.5f, 0.0f) + objectPosition;
-        glm::vec3 v2 = glm::vec3(0.5f, -0.5f, 0.0f) + objectPosition;
-        glm::vec3 v3 = glm::vec3(0.0f, 0.5f, 0.0f) + objectPosition;
+        // Render Frames via OpenGL GPU Buffers; CLEAR THE SCREEN          
+        glClearColor(0.1f, 0.14f, 0.18f, 1.0f);    
+
+        // Clear the depth buffer as well for 3D rendering
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);         
+     
+        myShader.use(); // Activate the shader program (GPU will use this for rendering)
+        myShader.setMat4("view", myCamera.GetViewMatrix()); // Send the View Matrix to the shader
+        myShader.setMat4("projection", myCamera.GetProjectionMatrix(1024.0f / 768.0f)); // Send the Projection Matrix to the shader
+        
+        // Render all entities with a Transform and Renderable component
+        RenderSystem(registry, myShader, time); 
+       
+        // --- ImGui Debug Overlay ---
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
+        ImGui::NewFrame();
+
+        // DEBUG
+        // We now pull the position directly from the ECS registry
+        glm::vec3 pos = registry.transforms[cube1].position;
+        glm::vec3 v1 = glm::vec3(-0.5f, -0.5f, 0.0f) + pos;
+        glm::vec3 v2 = glm::vec3( 0.5f, -0.5f, 0.0f) + pos;
+        glm::vec3 v3 = glm::vec3( 0.0f,  0.5f, 0.0f) + pos;
 
         // Print to console once per second (so it doesn't spam your terminal)
         static Uint64 lastTime = 0;
@@ -256,87 +220,13 @@ int main(int argc, char* argv[]) {
                 << "V3: " << v3.x << "," << v3.y << std::endl;
             lastTime = SDL_GetTicks();
         }
-           
-        // Render Frames via OpenGL GPU Buffers
-        // Clear the screen with a beautiful, custom gray-blue background color
-        glClearColor(0.1f, 0.14f, 0.18f, 1.0f);    
 
-        // Clear the depth buffer as well for 3D rendering
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);         
-     
-        // Draw Triangle on the LEFT (x = -0.5)
-        // MODEL MATRIX: Apply movement (Translate) THEN rotation.
-        // Order matters: We translate relative to (0,0,0), then rotate around that new spot.
-        // glm::mat4 modelTriangle = glm::mat4(1.0f);
-        // modelTriangle = glm::translate(modelTriangle, objectPosition);
-
-        // this line is calculating the exact number of seconds that have passed since your game engine booted up
-        float time = (float)SDL_GetTicks() / 1000.0f;
-
-        // Start with an identity matrix (no transformation)
-        glm::mat4 cubeModel = glm::mat4(1.0f); 
-
-        cubeModel = glm::translate(cubeModel, objectPosition);
-
-        // Direction for the rotation matrix
-        cubeModel = glm::rotate(cubeModel, time * glm::radians(50.0f), glm::vec3(0.5f, -1.0f, 0.0f));
-
-   
-        // Draw Square on the RIGHT (x = 0.8)
-        // glm::mat4 modelSquare = glm::translate(glm::mat4(1.0f), glm::vec3(0.8f, 0.0f, 0.0f));
-        // myShader.setMat4("model", modelSquare);
-        // square.draw();
-
-
-        // =================================================================
-        // VIEW TRANSFORMATION (THE VIEW MATRIX)
-        // =================================================================
-        // Conceptually: This creates the illusion of a camera vantage point.
-        // Mathematically: OpenGL has no camera; the viewer's eye is welded to (0,0,0).
-        // Therefore, to make the player feel like they stepped BACK by +3.0 units, 
-        // we must translate the entire WORLD's coordinates BACKWARD by -3.0 units 
-        // down the Right-Handed negative Z-axis.
-        
-        //glm::mat4 view = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -3.0f));
-        glm::mat4 view = myCamera.GetViewMatrix();
-
-        // Right-Handed Cooridnate system move the objeectd away from the Screen or closer to the screen
-        // view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f)); 
-       
-        // Projection Matrix: Perspective lens field of view (FOV)
-        //glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1024.0f / 768.0f, 0.1f, 100.0f);
-        glm::mat4 projection = myCamera.GetProjectionMatrix(1024.0f / 768.0f);
-
-        // PIPELINE EXECUTION
-        myShader.use();
-        myShader.setMat4("model", cubeModel);
-        myShader.setMat4("view", view);
-        myShader.setMat4("projection", projection);
-
-        // --- RENDER MESH ---
-        // Instead of binding VAO and drawing manually, use the object!
-        cube.draw();
-
-        // Draw Cube 2 (Generated via CubeBuilder)
-        glm::mat4 modelCube2 = glm::mat4(1.0f);
-        modelCube2 = glm::translate(modelCube2, glm::vec3(0.5f, 0.0f, 0.0f));  // Move right
-        myShader.setMat4("model", modelCube2);
-        cube2.draw();
-
-        // --- ImGui Debug Overlay ---
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplSDL3_NewFrame();
-        ImGui::NewFrame();
-
-        ImGui::Begin("Vertex Debugger");
-        ImGui::Text("V1: (%.2f, %.2f, %.2f)", -0.5f + objectPosition.x, -0.5f + objectPosition.y, 0.0f + objectPosition.z);
-        ImGui::Text("V2: (%.2f, %.2f, %.2f)", 0.5f + objectPosition.x, -0.5f + objectPosition.y, 0.0f + objectPosition.z);
-        ImGui::Text("V3: (%.2f, %.2f, %.2f)", 0.0f + objectPosition.x, 0.5f + objectPosition.y, 0.0f + objectPosition.z);
-        
-        // Optional: Display the object's origin point for easier reference
+        ImGui::Begin("Vertex Debugger");        
+        ImGui::Text("V1: (%.2f, %.2f, %.2f)", v1.x, v1.y, v1.z);
+        ImGui::Text("V2: (%.2f, %.2f, %.2f)", v2.x, v2.y, v2.z);
+        ImGui::Text("V3: (%.2f, %.2f, %.2f)", v3.x, v3.y, v3.z);
         ImGui::Separator();
-        ImGui::Text("Center: (%.2f, %.2f, %.2f)", objectPosition.x, objectPosition.y, objectPosition.z);
-        
+        ImGui::Text("Center: (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
         ImGui::End();
 
         ImGui::Render();
@@ -350,7 +240,6 @@ int main(int argc, char* argv[]) {
     // Expliciet Clean Resource
     std::cout << "HT Game Engine shutting down cleanly..." << std::endl;
 
-
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
@@ -360,4 +249,22 @@ int main(int argc, char* argv[]) {
     SDL_Quit();
 
     return 0;
+}
+
+// Pass by Reference to avoid copying the entire registry and mesh data structures
+void SetupScene(Registry &registry, Mesh &cubeMesh){
+    // Cube 1 (Controlled by input)
+    cube1 = registry.CreateEntity();
+    registry.transforms[cube1] = { glm::vec3(-1.0f, 0.0f, -2.0f) };
+    registry.hasTransform[cube1] = true;
+    registry.renderables[cube1] = { &cubeMesh };
+    registry.hasRenderable[cube1] = true;
+
+    // Cube 2 (Static)
+    Entity cube2 = registry.CreateEntity();
+    registry.transforms[cube2] = { glm::vec3(0.5f, 0.0f, 0.0f) };
+    registry.hasTransform[cube2] = true;
+    registry.renderables[cube2] = { &cubeMesh };
+    registry.hasRenderable[cube2] = true;
+
 }
