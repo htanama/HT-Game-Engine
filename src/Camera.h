@@ -15,6 +15,6 @@ public:
 
     // Creates the Projection Matrix: Defines the FOV and perspective
     glm::mat4 GetProjectionMatrix(float aspect){
-        return glm::perspective(glm::radians(45.0f), aspect, 0.1f, 100.0f);
+        return glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
     }
 };
