@@ -31,7 +31,7 @@ void SetupScene(Registry &registry, Mesh &cubeMesh);
 // Global References
 std::shared_ptr<Mesh> playerMesh;
 std::shared_ptr<Mesh> floorMesh;
-std::shared_ptr<Mesh> testCubeMesh; 
+std::shared_ptr<Mesh> testCubeMesh, testCubeMesh2; 
 std::shared_ptr<Mesh> projectileMesh;
 Entity playerEntity;
 
@@ -65,7 +65,7 @@ int SDL_Initializaton(){
         "HT Game Engine - Engine Context Verified",
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        SDL_WINDOW_OPENGL
+        SDL_WINDOW_OPENGL //| SDL_WINDOW_FULLSCREEN
     );
 
     if (!window) {
@@ -95,7 +95,14 @@ int SDL_Initializaton(){
 
     // Disable VSync for uncapped frame rates (for testing)
     SDL_GL_SetSwapInterval(0); 
-
+    
+    // Hide the mouse cursor    
+    if (!SDL_HideCursor()) {
+        SDL_Log("Failed to hide cursor: %s", SDL_GetError());
+    }
+  
+    SDL_SetWindowRelativeMouseMode(window, true);
+    
     return 0; // Success
 }
 
@@ -113,16 +120,12 @@ int main(int argc, char* argv[]) {
     // ==========================================================
     Shader myShader("shaders/opengl_vertex.glsl", "shaders/opengl_fragment.glsl"); 
     Camera myCamera;   
-
-    myCamera.position = glm::vec3(5.0f, 5.0f, 5.0f); 
-    // // Look at the origin
-    myCamera.front = glm::normalize(glm::vec3(0.0f, 0.0f, 0.0f) - myCamera.position); 
-
+  
     // --- SETUP MESHES ---
     // Generate Player (1m x 2m x 1m) 
     std::vector<Vertex> verticesPlayer;
     std::vector<unsigned int> indicesPlayer;
-    GetCustomCubeData(verticesPlayer, indicesPlayer, 0.5f, 2.0f, 0.5f); // Create a taller cube for the player  
+    GetPlayerCubeData(verticesPlayer, indicesPlayer); 
 
     // Generate Floor (10m x 1m x 10m)
     std::vector<Vertex> verticesFloor;
@@ -134,6 +137,11 @@ int main(int argc, char* argv[]) {
     std::vector<unsigned int> indicesCube;    
     GetCustomCubeData(verticesCube, indicesCube, 1.0f, 1.0f, 1.0f); // Standard cube for testing
     testCubeMesh = std::make_shared<Mesh>(verticesCube, indicesCube); // Create a shared pointer to the cube mesh
+
+    std::vector<Vertex> verticesCube2;
+    std::vector<unsigned int> indicesCube2;    
+    GetCustomCubeData(verticesCube2, indicesCube2, 1.0f, 1.0f, 1.0f); // Standard cube for testing
+    testCubeMesh2 = std::make_shared<Mesh>(verticesCube2, indicesCube2); // Create a shared pointer to the cube mesh
 
     // Create Projectile Mesh (0.2m x 0.2m x 0.2m)
     std::vector<Vertex> verticesProjectile; 
@@ -190,6 +198,8 @@ int main(int argc, char* argv[]) {
     static float lastPrintTime = 0.0f; 
     static float fps = 0.0f;
 
+    float mouseX, mouseY;
+
     // The Master Game Loop
     while (isRunning) {
         // Calculate deltaTime for smooth movement regardless of frame rate
@@ -200,6 +210,14 @@ int main(int argc, char* argv[]) {
 
         // Process Native OS Input & Events
         while (SDL_PollEvent(&event)) {
+            // capture mouse movement for camera rotation
+            if (event.type == SDL_EVENT_MOUSE_MOTION) {
+                //mouseX = static_cast<int>(event.motion.x);
+                //mouseY = static_cast<int>(event.motion.y);                          
+                myCamera.RotateCamera(event.motion.xrel * 0.1f, event.motion.yrel * 0.1f);
+            }
+          
+
             // Forward the event to ImGui
             // This allows ImGui to handle dragging, clicking, and resizing.
             ImGui_ImplSDL3_ProcessEvent(&event);
@@ -224,9 +242,9 @@ int main(int argc, char* argv[]) {
             }
 
             // Shoot a projectile when the left mouse button is clicked
-            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
-                Entity projectile = registry.CreateEntity();
-                
+            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {                
+                Entity projectile = GetProjectile(registry);
+
                 // Ensure we have space for the new entity's components
                 if(projectile < registry.transforms.size()){ 
                     
@@ -288,9 +306,8 @@ int main(int argc, char* argv[]) {
         // if (input.left) inputVelocity.x -= 1.0f;
         // if (input.right) inputVelocity.x += 1.0f;
         // registry.transforms[playerEntity].position += inputVelocity * moveSpeed * deltaTime;
+               
         
-        
-
         // this line is calculating the exact number of seconds that have passed since your game engine booted up
         float time = (float)SDL_GetTicks() / 1000.0f;
 
@@ -300,20 +317,24 @@ int main(int argc, char* argv[]) {
 
         // Clear the depth buffer as well for 3D rendering
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);         
-     
-        // 1. Update Camera Position and Front Vector FIRST
-        myCamera.front = glm::normalize(glm::vec3(0.0f, -0.3f, -1.0f));
-        myCamera.position = registry.transforms[playerEntity].position + glm::vec3(0.0f, 1.8f, 0.0f) + (myCamera.front * 0.6f);
+                                     
+        // Retrieve the position vector from the Transform component associated with the player entity
+        glm::vec3 playerPos = registry.transforms[playerEntity].position;
 
-        // Testing Camera View:
-        // Force the camera to be high up, looking down at the origin
-        // myCamera.position = glm::vec3(0.0f, 10.0f, 0.0f);             
-        // myCamera.front = glm::normalize(glm::vec3(0.0f, -1.0f, 0.0f));
+        // Update the camera's position to be above the player's current position 
+        // by setting it equal to the player's position plus a vertical offset (0.0f, 1.0f, 0.0f)
+        myCamera.position = playerPos + glm::vec3(0.0f, 1.0f, 0.0f);
 
-        // 2. NOW use the updated Camera to set uniforms
+        // Call the use function to activate the shader program for rendering graphics
         myShader.use();
+
+        // Set a uniform variable in the shader program with the name "viewPos" and pass the current camera position
         myShader.setVec3("viewPos", myCamera.position);        
+
+        // Set a uniform variable in the shader program with the name "view" and pass the view matrix of the camera
         myShader.setMat4("view", myCamera.GetViewMatrix());
+
+        // Set a uniform variable in the shader program with the name "projection" and pass the projection matrix of the camera, adjusting for window aspect ratio
         myShader.setMat4("projection", myCamera.GetProjectionMatrix(WINDOW_WIDTH / (float)WINDOW_HEIGHT));
         
         myShader.setVec3("objectColor", glm::vec3(1.0f)); // White light
@@ -358,9 +379,7 @@ int main(int argc, char* argv[]) {
         ImGui::Text("V3: (%.2f, %.2f, %.2f)", v3.x, v3.y, v3.z);
         ImGui::Separator();
         ImGui::Text("Center: (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
-        ImGui::End();
-
-       
+        ImGui::End();     
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -387,6 +406,7 @@ int main(int argc, char* argv[]) {
 
 // Pass by Reference to avoid copying the entire registry and mesh data structures
 void SetupScene(Registry &registry, Mesh &cubeMesh){
+
     //Create Player (Cube)
     playerEntity = registry.CreateEntity();
     
@@ -418,8 +438,18 @@ void SetupScene(Registry &registry, Mesh &cubeMesh){
     registry.hasColor[testCube] = true;
     registry.renderables[testCube] = { testCubeMesh.get() };    
     registry.hasRenderable[testCube] = true;
-    registry.rotations[testCube] = { 0.0f, glm::vec3(-1.0f, 0.0f, 0.0f), 0.5f }; // Rotate around Y-axis at 20 degrees per second
+    registry.rotations[testCube] = { 0.0f, glm::vec3(-1.0f, 0.5f, 0.0f), 0.1f }; // Rotate around Y-axis at 20 degrees per second
     registry.hasRotation[testCube] = true;
+
+    Entity testCube2 = registry.CreateEntity();
+    registry.transforms[testCube2] = { glm::vec3(5.0f, 1.0f, 10.0f) };
+    registry.hasTransform[testCube2] = true;
+    registry.colors[testCube2] = { glm::vec3(1.0f, 0.0f, 0.0f) }; // Red color for this cube
+    registry.hasColor[testCube2] = true;
+    registry.renderables[testCube2] = { testCubeMesh.get() };    
+    registry.hasRenderable[testCube2] = true;
+    registry.rotations[testCube2] = { 0.0f, glm::vec3(0.0f, 0.5f, 0.0f), 0.1f }; // Rotate around Y-axis at 20 degrees per second
+    registry.hasRotation[testCube2] = true;
 
     // Projectile will be created dynamically when the player clicks, so we don't set it up here in the scene.
 
