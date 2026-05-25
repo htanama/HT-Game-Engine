@@ -4,6 +4,10 @@
 
 class Camera {
 public:
+    // Add these persistent member variables
+    float yaw = -90.0f; // Start facing forward
+    float pitch = 0.0f;
+
     glm::vec3 position = glm::vec3(0.0f, 0.0f, 3.0f);
     glm::vec3 front = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -17,4 +21,23 @@ public:
     glm::mat4 GetProjectionMatrix(float aspect){
         return glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
     }
+
+    void RotateCamera(float xOffset, float yOffset) {    
+        yaw += xOffset;
+        pitch += yOffset; // Note: You might need to swap +/- depending on your preference
+        
+        // Constrain the pitch to prevent flipping
+        if(pitch > 89.0f) pitch = 89.0f;
+        if(pitch < -89.0f) pitch = -89.0f;
+
+        // Update the front vector based on yaw and pitch
+        glm::vec3 newFront;
+
+        newFront.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));        
+        // when mouse move up player look up to make this we need to put negative sign before sin(pitch) 
+        //because in OpenGL the positive Y axis is up, but when we look up we want to decrease the Y value of the front vector
+        newFront.y = -sin(glm::radians(pitch));
+        newFront.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        front = glm::normalize(newFront);
+    }   
 };

@@ -4,6 +4,7 @@
 
 using Entity = size_t; // Alias for entity IDs
 
+// The Registry class manages all entities and their associated components.
 class Registry 
 {
 public:
@@ -25,7 +26,7 @@ public:
     Entity CreateEntity(){
         // New entity ID is the current size of the component arrays
         Entity id = hasTransform.size(); 
-        
+                
         transforms.push_back({}); // Add default Transform
         renderables.push_back({}); // Add default Renderable
         velocities.push_back({}); // Add default Velocity
