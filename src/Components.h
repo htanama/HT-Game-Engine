@@ -2,11 +2,17 @@
 #include <glm/glm.hpp>                   // Core GLM functionality (vec3, mat4, etc.)
 #include <memory>
 #include "Mesh.h"
+#include "Camera.h"
 
 struct Transform{
     glm::vec3 position{0.0f};
     glm::vec3 rotation{0.0f};
     glm::vec3 scale{1.0f};
+};
+
+struct CameraComponent {
+    Camera camera;
+    bool isPlayerCamera = false; // True if this camera should be used for player view
 };
 
 // The Renderable component tells the RenderSystem which mesh to draw for this entity, 
@@ -34,3 +40,4 @@ struct RotationComponent {
 struct LifetimeComponent {
     float remainingTime = 60.0f; // 60 seconds
 };
+

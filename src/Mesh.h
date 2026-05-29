@@ -26,12 +26,17 @@ struct Vertex {
  * It supports three modes:
  * 1. Simple: Raw array of floats (Position only)
  * 2. Standard: Interleaved Vertex struct (Position + Color + Normal)
- * 3. Indexed: Standard + Element Buffer Object (EBO) for optimized geometry
+ * 3. Indexed: Standard + Element Buffer Object for optimized geometry
  */
 class Mesh {
 private:
-    unsigned int m_VAO, m_VBO, m_EBO; // OpenGL handles for GPU memory
-    int m_elementCount;               // Number of indices or vertices to draw
+    unsigned int m_VAO; // OpenGL handle for Vertex Array Object (stores state of vertex attributes and buffers) 
+    unsigned int m_VBO; // OpenGL handle for Vertex Buffer Object (stores vertex data in GPU memory)
+    
+    unsigned int m_EBO; // Element Buffer Object is an OpenGL buffer that stores indices to reference vertices in a VBO
+                        // allowing for efficient reuse of vertex data and optimized rendering of complex geometry.
+    
+    int m_vertexCount;               // Number of indices or vertices to draw
     bool m_isCombined;                // True if using Vertex struct (has colors/normals)
     bool m_isIndexed;                 // True if using an Index Buffer (EBO)
 
@@ -67,14 +72,14 @@ private:
 
 public:
     // --- CONSTRUCTORS ---
-
-    // 1. Simple Position-only data
-    Mesh(float* vertices, int size) : m_elementCount(size / 3), m_isCombined(false), m_isIndexed(false) {
+    // Simple Constructor: line, triangle, or point cloud (not recommended for complex meshes)
+    // primitive constructor for quick testing, not recommended for complex meshes
+    Mesh(float* vertices, int size) : m_vertexCount(size / 3), m_isCombined(false), m_isIndexed(false) {
         glGenVertexArrays(1, &m_VAO);
         glGenBuffers(1, &m_VBO);
         
         glBindVertexArray(m_VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+        glBindBuffer(GL_ARRAY_BUFFER, m_VBO);       
         glBufferData(GL_ARRAY_BUFFER, size * sizeof(float), vertices, GL_STATIC_DRAW);
 
         // Simple position setup
@@ -84,13 +89,22 @@ public:
         glBindVertexArray(0);
     }
 
-    // 2. Standard: Interleaved Data (no indices)
-    Mesh(const std::vector<Vertex>& vertices) : m_elementCount(vertices.size()), m_isCombined(true), m_isIndexed(false) {
+    // Default: Mesh created with a vector of Vertex structs (Position + Color + Normal)
+    Mesh(const std::vector<Vertex>& vertices) : m_vertexCount(vertices.size()), m_isCombined(true), m_isIndexed(false) {
         glGenVertexArrays(1, &m_VAO);
         glGenBuffers(1, &m_VBO);
         
+        // Bind the Vertex Array Object (VAO) to store the state of our vertex attributes and buffers
         glBindVertexArray(m_VAO);
+        // Bind the Vertex Buffer Object (VBO) to upload our vertex data to the GPU
         glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+
+        // Upload the vertex data to the GPU's memory.    
+        // Allocate and upload index data to the GPU's memory.
+        // 1. GL_ELEMENT_ARRAY_BUFFER: Specifies we are targeting the Element Buffer Object (EBO).
+        // 2. Size: Total size of the buffer in bytes (number of indices * size of a single unsigned int).
+        // 3. indices.data(): Pointer to the source data in your CPU's RAM (the std::vector).
+        // 4. GL_STATIC_DRAW: Performance hint: the data won't change, so store it in fast VRAM.
         glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
 
         SetupAttributes();
@@ -99,7 +113,7 @@ public:
 
     // 3. Indexed: Combined Data + EBO (Most efficient for complex shapes)
     Mesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices) 
-        : m_elementCount(indices.size()), m_isCombined(true), m_isIndexed(true) {
+        : m_vertexCount(indices.size()), m_isCombined(true), m_isIndexed(true) {
         
         glGenVertexArrays(1, &m_VAO);
         glGenBuffers(1, &m_VBO);
@@ -112,7 +126,7 @@ public:
         glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
 
         // Upload Index Data (The recipe for connecting vertices)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);       
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
         SetupAttributes();
@@ -125,23 +139,28 @@ public:
         glDeleteBuffers(1, &m_VBO);
         if (m_isIndexed) glDeleteBuffers(1, &m_EBO);
         std::cout << "Mesh resources freed from GPU." << std::endl;
-    }
-    
+    }   
+
     // Selects the appropriate Draw function based on constructor used
     void draw() {
         glBindVertexArray(m_VAO);
         
-        // Mode 2: Indexed | Mode 1: Standard Combined | Mode 0: Simple
+        // Mode: Indexed | Mode 1: Standard Combined | Mode 0: Simple
         int mode = (m_isCombined && m_isIndexed) ? 2 : (m_isCombined ? 1 : 0);
         
         switch (mode) {
             case 2: // Indexed: Uses the EBO to draw triangles
-                glDrawElements(GL_TRIANGLES, m_elementCount, GL_UNSIGNED_INT, 0); 
+                glDrawElements(GL_TRIANGLES, m_vertexCount, GL_UNSIGNED_INT, 0); 
                 break;
-            case 1: // Standard: Draws based on vertex order
-            case 0: // Simple drawing
+            case 1: // Standard: Draws using vector of Vertex structs without indices
+                glDrawArrays(GL_TRIANGLES, 0, m_vertexCount);
+                break;
+            case 0: // Simple: point, line, or triangle (not recommended for complex meshes)
+                 glDrawArrays(GL_TRIANGLES, 0, m_vertexCount);
+                 break;
             default:
-                glDrawArrays(GL_TRIANGLES, 0, m_elementCount); 
+                // Fallback using vector of Vertex structs without indices   
+                glDrawArrays(GL_TRIANGLES, 0, m_vertexCount); 
                 break;
         }
         glBindVertexArray(0);

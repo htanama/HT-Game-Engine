@@ -14,6 +14,7 @@ public:
     std::vector<ColorComponent> colors;
     std::vector<RotationComponent> rotations;
     std::vector<LifetimeComponent> lifetimes;
+    std::vector<CameraComponent> cameras; // New vector to hold camera components
 
     // We use a simple way to track which entity has which componetes.  
     std::vector<bool> hasTransform;
@@ -22,6 +23,7 @@ public:
     std::vector<bool> hasColor;
     std::vector<bool> hasRotation;
     std::vector<bool> hasLifetime;
+    std::vector<bool> hasCamera; // Track which entities have a CameraComponent
 
     Entity CreateEntity(){
         // New entity ID is the current size of the component arrays

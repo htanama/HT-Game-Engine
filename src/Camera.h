@@ -9,9 +9,10 @@ public:
     float pitch = 0.0f;
 
     glm::vec3 position = glm::vec3(0.0f, 0.0f, 3.0f);
-    glm::vec3 front = glm::vec3(0.0f, 0.0f, -1.0f);
+    glm::vec3 front = glm::vec3(0.0f, 0.0f, -1.0f);    
+    glm::vec3 right = glm::vec3(1.0f, 0.0f, 0.0f); 
     glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-
+        
     // Creates the View Matrix: Defines where the camera is looking
     glm::mat4 GetViewMatrix() {
         return glm::lookAt(position, position + front, up);
@@ -29,7 +30,7 @@ public:
         // Constrain the pitch to prevent flipping
         if(pitch > 89.0f) pitch = 89.0f;
         if(pitch < -89.0f) pitch = -89.0f;
-
+        
         // Update the front vector based on yaw and pitch
         glm::vec3 newFront;
 
@@ -38,6 +39,12 @@ public:
         //because in OpenGL the positive Y axis is up, but when we look up we want to decrease the Y value of the front vector
         newFront.y = -sin(glm::radians(pitch));
         newFront.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        
+        // Normalize the front vector to ensure consistent movement speed in all directions
         front = glm::normalize(newFront);
+        
+        // ADD THIS: Calculate the right vector whenever rotation changes
+        // Right is the cross product of Front and World Up
+        right = glm::normalize(glm::cross(front, up));
     }   
 };
