@@ -292,8 +292,8 @@ int main(int argc, char* argv[]) {
                 
             }
 
-            // Shoot a projectile when the left mouse button is clicked
-            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {                
+            // Shoot a projectile when the left mouse button is clicked, Not in Debug Mode
+            if (!isDebug && event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {                
                 Entity projectile = GetProjectile(registry);
 
                 // Ensure we have space for the new entity's components
@@ -337,11 +337,17 @@ int main(int argc, char* argv[]) {
             // Snap if we just entered debug mode to see the player
             if(needsSnap){
                 // Calculate vector from camera to player
+                // get the reference to the player current position
                 glm::vec3 playerPos = registry.transforms[playerEntity].position;
+                
+                // Define an offset for editorCamera
+                glm::vec3 offset = glm::vec3(3.0f, 3.0f, 3.0f);
+                editorCamera.position = playerPos + offset;
+
+                // Calculate direction to look at the player
                 glm::vec3 direction = glm::normalize(playerPos - editorCamera.position);
-                // Update the camera's orientation to look at the player
-                // Note: Assuming your Camera class has a way to set its view direction.
-                // If your camera uses yaw/pitch, you'd calculate them from the direction vector:
+
+                // Update the camera's orientation to look at the player                                
                 editorCamera.SetDirection(direction);
                 needsSnap = false; // Snap done. 
             }
