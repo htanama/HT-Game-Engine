@@ -39,7 +39,7 @@ private:
     int m_vertexCount;               // Number of indices or vertices to draw
     bool m_isCombined;                // True if using Vertex struct (has colors/normals)
     bool m_isIndexed;                 // True if using an Index Buffer (EBO)
-
+   
     // Configures how the GPU reads our interleaved Vertex struct
     void SetupAttributes() {
         // The "stride" is the byte-size of one full Vertex struct (36 bytes).

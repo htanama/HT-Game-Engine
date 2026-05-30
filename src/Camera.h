@@ -23,6 +23,34 @@ public:
         return glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
     }
 
+    void Camera::SetDirection(glm::vec3 direction) {
+        // 1. Normalize the direction to ensure it's a unit vector
+        direction = glm::normalize(direction);
+
+        // 2. Calculate Pitch (Vertical angle)
+        // The asin of the y-component gives the angle in radians
+        pitch = glm::degrees(asin(direction.y));
+
+        // 3. Calculate Yaw (Horizontal angle)
+        // atan2(z, x) gives the angle in the XZ plane
+        yaw = glm::degrees(atan2(direction.z, direction.x)) - 90.0f;
+
+        // 4. Update the internal front, right, and up vectors
+        UpdateCameraVectors();
+    }
+
+    void UpdateCameraVectors() {
+        glm::vec3 f;
+        f.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+        f.y = sin(glm::radians(pitch));
+        f.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        front = glm::normalize(f);
+        
+        // Recompute right and up
+        right = glm::normalize(glm::cross(front, up));
+        up    = glm::normalize(glm::cross(right, front));
+    }
+    
     void RotateCamera(float xOffset, float yOffset) {    
         yaw += xOffset;
         pitch += yOffset; // Note: You might need to swap +/- depending on your preference

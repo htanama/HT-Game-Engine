@@ -49,7 +49,13 @@ SDL_GLContext glContext = NULL;
 
 // Rotate editorCamera with mouse movement when in debug mode
 bool isRightMouseButtonDown = false;
+
 bool isDebug = false; // Toggle with TAB key 
+bool needsSnap = true; // Flag to control the one-time snap editorCamera
+
+void CreateImGUI_Editor(){
+    
+}
 
 int SDL_Initializaton(){
     // Initialize SDL3 Video Subsystem retrun true if successful, false if failed
@@ -64,18 +70,26 @@ int SDL_Initializaton(){
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
     // Create the Native Window Context
-    window = SDL_CreateWindow(
-        "HT Game Engine - Engine Context Verified",
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT,
-        SDL_WINDOW_OPENGL //| SDL_WINDOW_FULLSCREEN
-    );
+    // window = SDL_CreateWindow(
+    //     "HT Game Engine",
+    //     WINDOW_WIDTH,
+    //     WINDOW_HEIGHT,
+    //     SDL_WINDOW_OPENGL //| SDL_WINDOW_FULLSCREEN
+    // );
+
+    Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
+
+    window = SDL_CreateWindow("HT Game Engine", 
+        WINDOW_WIDTH, WINDOW_HEIGHT, flags);
 
     if (!window) {
         std::cerr << "Failed to Create Window: " << SDL_GetError() << std::endl;
         SDL_Quit();
         return -1;
     }
+
+    int displayWidth, displayHeight;
+    SDL_GetWindowSize(window, &displayWidth, &displayHeight);
 
     // Create the OpenGL Context bound to our Window
     glContext = SDL_GL_CreateContext(window);
@@ -151,9 +165,9 @@ int main(int argc, char* argv[]) {
 
     std::vector<Vertex> playerVerticesCamera;
     std::vector<unsigned int> playerIndicesCamera;
-    GetCustomCubeData(playerVerticesCamera, playerIndicesCamera, 0.2f, 0.2f, 0.2f); // Create a small cube for the player camera
+    GetCustomCubeData(playerVerticesCamera, playerIndicesCamera, 0.2f, 0.2f, 0.2f); // Create a small cube for the player camera (float width, float height, float depth)
     playerCameraMesh = std::make_shared<Mesh>(playerVerticesCamera, playerIndicesCamera); // Create a shared pointer to the player camera mesh
-
+    
     // Create Projectile Mesh (0.2m x 0.2m x 0.2m)
     std::vector<Vertex> verticesProjectile; 
     std::vector<unsigned int> indicesProjectile;
@@ -200,8 +214,7 @@ int main(int argc, char* argv[]) {
     glDepthFunc(GL_LESS); 
        
     bool isRunning = true;
-    SDL_Event event;
-    
+    SDL_Event event;   
 
     // Outside your while loop:
     Uint64 lastTime = SDL_GetTicks();
@@ -209,8 +222,7 @@ int main(int argc, char* argv[]) {
     // For controlling how often we print debug info to the console
     static float lastPrintTime = 0.0f; 
     static float fps = 0.0f;
-
-    float mouseX, mouseY;
+    float mouseX, mouseY;  
 
     // The Master Game Loop
     while (isRunning) {
@@ -219,11 +231,24 @@ int main(int argc, char* argv[]) {
         float deltaTime = (currentTime - lastTime) / 1000.0f; // Convert milliseconds to seconds
         lastTime = currentTime;     
 
+        // Calculate fresh every frame so it works even if the window is resized
+        int width, height;
+
+        // Use this instead of SDL_GetWindowSize to handle high-DPI screens correctly
+        SDL_GetWindowSizeInPixels(window, &width, &height);
+
+        // Update the Viewport to match the actual pixel dimensions
+        glViewport(0, 0, width, height);
+
+        SDL_GetWindowSize(window, &width, &height);
+        if (height == 0) height = 1; // Prevent division by zero            
+        float currentAspectRatio = (float)width / (float)height;
+
         // Process Native OS Input & Events
         while (SDL_PollEvent(&event)) {                   
             // Forward the event to ImGui
             // This allows ImGui to handle dragging, clicking, and resizing.
-            ImGui_ImplSDL3_ProcessEvent(&event);
+            ImGui_ImplSDL3_ProcessEvent(&event);         
 
             // set the right mouse button state for camera rotation in debug mode
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_RIGHT) {
@@ -275,7 +300,7 @@ int main(int argc, char* argv[]) {
                 if(projectile < registry.transforms.size()){ 
                     
                     // Where projectile spawns: at the player camera position FPS Game Style
-                    registry.transforms[projectile].position = playerCamera.position + (playerCamera.front * 0.5f); // Spawn a bit in front of the camera   
+                    registry.transforms[projectile].position = playerCamera.position + (playerCamera.front * 0.2f); // Spawn a bit in front of the camera   
                     registry.hasTransform[projectile] = true;
                     
                     // color the projectile bright red so it's visible
@@ -308,6 +333,19 @@ int main(int argc, char* argv[]) {
         if(isDebug){
             SDL_SetWindowRelativeMouseMode(window, false);
             SDL_ShowCursor();
+            
+            // Snap if we just entered debug mode to see the player
+            if(needsSnap){
+                // Calculate vector from camera to player
+                glm::vec3 playerPos = registry.transforms[playerEntity].position;
+                glm::vec3 direction = glm::normalize(playerPos - editorCamera.position);
+                // Update the camera's orientation to look at the player
+                // Note: Assuming your Camera class has a way to set its view direction.
+                // If your camera uses yaw/pitch, you'd calculate them from the direction vector:
+                editorCamera.SetDirection(direction);
+                needsSnap = false; // Snap done. 
+            }
+
             float cameraSpeed = moveSpeed * 5.0f; // Move faster in debug mode            
             // In debug mode, we can move the camera freely like a spectator
             if (input.forward)  editorCamera.position += editorCamera.front * cameraSpeed * deltaTime;
@@ -364,19 +402,19 @@ int main(int argc, char* argv[]) {
 
         // Pick which camera to use
         Camera& activeCamera = isDebug ? editorCamera : playerCamera;
-        float aspectRatio = WINDOW_WIDTH / (float)WINDOW_HEIGHT;
+        
         if (isDebug){
            // Draw X Axis (Red)
            debugRenderer->AddLine(glm::vec3(0,0,0), glm::vec3(50,0,0));
-           debugRenderer->Render(activeCamera.GetViewMatrix(), activeCamera.GetProjectionMatrix(aspectRatio), glm::vec3(1, 0, 0));
+           debugRenderer->Render(activeCamera.GetViewMatrix(), activeCamera.GetProjectionMatrix(currentAspectRatio), glm::vec3(1, 0, 0));
 
            // Draw Y Axis (Green)
            debugRenderer->AddLine(glm::vec3(0,0,0), glm::vec3(0,50,0));
-           debugRenderer->Render(activeCamera.GetViewMatrix(), activeCamera.GetProjectionMatrix(aspectRatio), glm::vec3(0, 1, 0));
+           debugRenderer->Render(activeCamera.GetViewMatrix(), activeCamera.GetProjectionMatrix(currentAspectRatio), glm::vec3(0, 1, 0));
 
            // Draw Z Axis (Blue)
            debugRenderer->AddLine(glm::vec3(0,0,0), glm::vec3(0,0,50));
-           debugRenderer->Render(activeCamera.GetViewMatrix(), activeCamera.GetProjectionMatrix(aspectRatio), glm::vec3(0, 0, 1));
+           debugRenderer->Render(activeCamera.GetViewMatrix(), activeCamera.GetProjectionMatrix(currentAspectRatio), glm::vec3(0, 0, 1));
         }
 
         // Retrieve the position vector from the Transform component associated with the player entity
@@ -385,7 +423,7 @@ int main(int argc, char* argv[]) {
         // Update the camera's position to be above the player's current position 
         // by setting it equal to the player's position plus a vertical offset (0.0f, 1.0f, 0.0f)
         if(!isDebug){            
-            playerCamera.position = playerPos + glm::vec3(0.0f, 0.8f, 0.0f);                
+            playerCamera.position = playerPos + glm::vec3(0.0f, 0.5f, 0.0f);                
         }
         // Call the use function to activate the shader program for rendering graphics
         myShader.use();
@@ -397,7 +435,7 @@ int main(int argc, char* argv[]) {
         myShader.setMat4("view", activeCamera.GetViewMatrix());
 
         // Set a uniform variable in the shader program with the name "projection" and pass the projection matrix of the camera, adjusting for window aspect ratio
-        myShader.setMat4("projection", activeCamera.GetProjectionMatrix(WINDOW_WIDTH / (float)WINDOW_HEIGHT));
+        myShader.setMat4("projection", activeCamera.GetProjectionMatrix(currentAspectRatio));
         
         myShader.setVec3("objectColor", glm::vec3(1.0f)); // White light
 
@@ -428,20 +466,59 @@ int main(int argc, char* argv[]) {
             lastPrintTime = currentTime;
         }  
 
-        // ImGui window for FPS and frame time debugging
-        ImGui::Begin("Engine Stats");
-        ImGui::Text("FPS: %.0f", fps);
-        ImGui::Text("Frame Time: %.2f ms", deltaTime * 1000.0f);   
-        ImGui::End(); // ImGui window for FPS end.
+        if (isDebug)
+        {
+            // Define the right-hand panel area
+            // float panelX = 1920.0f - 400.0f;            
+            float panelWidth = 400.0f;
 
-        // ImGui Window to display vertex positions and engine stats
-        ImGui::Begin("Vertex Debugger");        
-        ImGui::Text("V1: (%.2f, %.2f, %.2f)", v1.x, v1.y, v1.z);
-        ImGui::Text("V2: (%.2f, %.2f, %.2f)", v2.x, v2.y, v2.z);
-        ImGui::Text("V3: (%.2f, %.2f, %.2f)", v3.x, v3.y, v3.z);
-        ImGui::Separator();
-        ImGui::Text("Center: (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
-        ImGui::End();     
+            ImGuiIO &io = ImGui::GetIO();
+            float panelX = io.DisplaySize.x - panelWidth;
+
+            ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
+
+            // --- 1. Engine Stats (Top Right) ---
+            ImGui::SetNextWindowPos(ImVec2(panelX, 0), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(panelWidth, 150), ImGuiCond_Always);
+            ImGui::Begin("Engine Stats", nullptr, windowFlags);
+            ImGui::Text("FPS: %.0f", fps);
+            ImGui::Text("Frame Time: %.2f ms", deltaTime * 1000.0f);
+            ImGui::End();
+
+            // --- 2. Vertex Debugger (Below Stats) ---
+            float remainingHeight = io.DisplaySize.y - 150.0f; // Subtract top panel height
+            ImGui::SetNextWindowPos(ImVec2(panelX, 150), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(panelWidth, 200), ImGuiCond_Always);
+            // FIXED: The window flags and nullptr must be outside the string!
+            ImGui::Begin("Vertex Player Debugger", nullptr, ImGuiWindowFlags_None); 
+            ImGui::Text("V1: (%.2f, %.2f, %.2f)", v1.x, v1.y, v1.z);
+            ImGui::Text("V2: (%.2f, %.2f, %.2f)", v2.x, v2.y, v2.z);
+            ImGui::Text("V3: (%.2f, %.2f, %.2f)", v3.x, v3.y, v3.z);
+            ImGui::Separator();
+            ImGui::Text("Center: (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z);
+            ImGui::End();
+
+            // --- 3. Inspector (Below Vertex Debugger) ---
+            ImGui::SetNextWindowPos(ImVec2(panelX, 350), ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(panelWidth, 200), ImGuiCond_Always);
+            ImGui::Begin("Inspector", nullptr, ImGuiWindowFlags_None);
+            
+            if (ImGui::CollapsingHeader("Player Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
+                auto& t = registry.transforms[playerEntity];
+                ImGui::DragFloat3("Position", &t.position.x, 0.1f);
+                ImGui::DragFloat3("Scale",    &t.scale.x,    0.05f);
+                if (ImGui::Button("Reset Player Scale")) {
+                    t.scale = glm::vec3(1.0f);
+                }
+            }
+            if (ImGui::CollapsingHeader("Camera Mesh")) {
+                auto& c = registry.transforms[playerCameraEntity];
+                ImGui::DragFloat3("Cam Position", &c.position.x, 0.1f);                
+            }
+            ImGui::End();
+
+            
+        }
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -474,14 +551,14 @@ void SetupScene(Registry &registry, Mesh &cubeMesh){
     playerEntity = registry.CreateEntity();
     
     // Player at 0.0 Y puts the bottom of the player exactly on the floor
-    registry.transforms[playerEntity].position = glm::vec3(0.0f, 0.0f, 0.0f);        
+    registry.transforms[playerEntity].position = glm::vec3(0.0f, 0.5f, 0.0f);        
     registry.hasTransform[playerEntity] = true;
     registry.renderables[playerEntity] = { playerMesh.get() };
     registry.hasRenderable[playerEntity] = true;
 
     // Create player camera entity (small cube that shows where the camera is in the world, useful for debugging)
     playerCameraEntity = registry.CreateEntity();    
-    registry.transforms[playerCameraEntity].position = glm::vec3(0.0f, 0.5f, 0.0f); // Start above the player
+    registry.transforms[playerCameraEntity].position = glm::vec3(0.0f, 0.0f, 0.0f); // Start above the player
     registry.hasTransform[playerCameraEntity] = true;
     registry.renderables[playerCameraEntity] = { playerCameraMesh.get() };
     registry.hasRenderable[playerCameraEntity] = false; // Start with the camera cube invisible (we'll toggle it in debug mode)
@@ -491,7 +568,7 @@ void SetupScene(Registry &registry, Mesh &cubeMesh){
 
     // Create Floor (Wide, thin cube)
     Entity floorEntity = registry.CreateEntity();
-    registry.transforms[floorEntity] = { glm::vec3(0.0f, -0.6f, 0.0f) }; // Positioned below
+    registry.transforms[floorEntity] = { glm::vec3(0.0f, 0.0f, 0.0f) }; // Positioned below
 
     // Note: You can apply a scaling matrix in your RenderSystem based on 
     // a potential 'Scale' component if you want to make it look flat!
