@@ -18,7 +18,8 @@ struct CameraComponent {
 // The Renderable component tells the RenderSystem which mesh to draw for this entity, 
 // and what color to use if not using vertex colors.
 struct Renderable {
-    Mesh* mesh = nullptr; // Pointer to the mesh to render
+    // Mesh* mesh = nullptr; // Pointer to the mesh to render
+    std::shared_ptr<Mesh> mesh;
     glm::vec3 color = glm::vec3(1.0f); // Default color (white)
     bool isVertexColor = false; // Whether to use vertex colors or a default shader color
 };
@@ -41,3 +42,6 @@ struct LifetimeComponent {
     float remainingTime = 60.0f; // 60 seconds
 };
 
+struct NameComponent {
+    std::string name;
+};

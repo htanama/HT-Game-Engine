@@ -4,7 +4,7 @@
 
 class Camera {
 private:
-
+    float mouseSensitivity = 0.5f;
     void UpdateCameraVectors() {    
         // Update the front vector based on yaw and pitch
         glm::vec3 newFront;
@@ -38,7 +38,7 @@ public:
         
     // Creates the View Matrix: Defines where the camera is looking
     glm::mat4 GetViewMatrix() {
-        return glm::lookAt(position, position + front, up);
+        return glm::lookAt(position, position + front, glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
     // Creates the Projection Matrix: Defines the FOV and perspective
@@ -58,15 +58,20 @@ public:
         // Calculate Yaw (Horizontal angle)        
         yaw = glm::degrees(atan2(direction.z, direction.x));
 
+        // Safety: Clamp pitch to prevent flipping
+        if (pitch > 89.0f)  pitch = 89.0f;
+        if (pitch < -89.0f) pitch = -89.0f;
+
         // 4. Update the internal front, right, and up vectors
         UpdateCameraVectors();
     }
 
     
     
-    void RotateCamera(float xOffset, float yOffset) {    
-        yaw += xOffset;
-        pitch += yOffset; // Note: You might need to swap +/- depending on your preference
+    void RotateCamera(float xOffset, float yOffset) {   
+         
+        yaw += xOffset * mouseSensitivity;
+        pitch += yOffset * mouseSensitivity; // Note: You might need to swap +/- depending on your preference
         
         // Constrain the pitch to prevent flipping
         if(pitch > 89.0f) pitch = 89.0f;

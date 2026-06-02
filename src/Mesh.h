@@ -12,7 +12,10 @@
 
 // Struct representing a single point in 3D space with multiple attributes
 struct Vertex {
-    glm::vec3 position; // Location (X, Y, Z)
+
+    glm::vec3 position = glm::vec3(0.0f); // Location (X, Y, Z)
+    glm::vec3 rotation = glm::vec3(0.0f);
+    glm::vec3 scale    = glm::vec3(1.0f);    
     glm::vec3 color;    // Tint (R, G, B)
     glm::vec3 normal;   // Direction for lighting calculations (X, Y, Z)
 
@@ -115,6 +118,10 @@ public:
     Mesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices) 
         : m_vertexCount(indices.size()), m_isCombined(true), m_isIndexed(true) {
         
+        if (indices.empty()) {
+            std::cout << "CRITICAL: Creating a mesh with 0 indices!" << std::endl;
+        }
+
         glGenVertexArrays(1, &m_VAO);
         glGenBuffers(1, &m_VBO);
         glGenBuffers(1, &m_EBO);
@@ -131,6 +138,8 @@ public:
 
         SetupAttributes();
         glBindVertexArray(0);
+
+
     }
     
     // Cleanup GPU memory when Mesh object goes out of scope
@@ -141,10 +150,37 @@ public:
         std::cout << "Mesh resources freed from GPU." << std::endl;
     }   
 
+    unsigned int GetVIO() const{
+        return m_VAO;
+    }
+
+    int GetVertexCount() const{
+        return m_vertexCount;
+    }
+
+
+    void Mesh::draw() {
+        glBindVertexArray(m_VAO);
+        
+        // Crucial: Use glDrawElements because m_isIndexed is true
+        if (m_isIndexed) {
+            glDrawElements(GL_TRIANGLES, m_vertexCount, GL_UNSIGNED_INT, 0);
+        } else {
+            glDrawArrays(GL_TRIANGLES, 0, m_vertexCount);
+        }
+        
+        glBindVertexArray(0);
+    }
+
+    /*
     // Selects the appropriate Draw function based on constructor used
     void draw() {
         glBindVertexArray(m_VAO);
         
+        // Safety check: If indexed, re-bind the EBO to ensure the state is correct
+        if (m_isIndexed) {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
+        }
         // Mode: Indexed | Mode 1: Standard Combined | Mode 0: Simple
         int mode = (m_isCombined && m_isIndexed) ? 2 : (m_isCombined ? 1 : 0);
         
@@ -164,7 +200,7 @@ public:
                 break;
         }
         glBindVertexArray(0);
-    }
-};
+    } */
 
+};
 #endif
