@@ -56,7 +56,7 @@ public:
     }
 
     // passing information to fragment shader about whether to use vertex colors or a uniform color
-    void setbBool(const std::string& name, bool value) const {
+    void setBool(const std::string& name, bool value) const {
         glUniform1i(glGetUniformLocation(ID, name.c_str()), (int)value);
     }
 

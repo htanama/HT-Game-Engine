@@ -3,18 +3,42 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 class Camera {
+private:
+    float mouseSensitivity = 0.5f;
+    void UpdateCameraVectors() {    
+        // Update the front vector based on yaw and pitch
+        glm::vec3 newFront;
+
+        newFront.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+
+        // when mouse move up player look up to make this we need to put negative sign before sin(pitch) 
+        //because in OpenGL the positive Y axis is up, but when we look up we want to decrease the Y value of the front vector
+        newFront.y = -sin(glm::radians(pitch));
+
+        newFront.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        
+        // Normalize the front vector to ensure consistent movement speed in all directions
+        front = glm::normalize(newFront);                       
+
+        // Calculate the right vector whenever rotation changes
+        // Right is the cross product of Front and World Up
+        right = glm::normalize(glm::cross(front, glm::vec3(0.0f, 1.0f, 0.0f)));
+        up    = glm::normalize(glm::cross(right, front));
+    }
+    
 public:
     // Add these persistent member variables
     float yaw = -90.0f; // Start facing forward
     float pitch = 0.0f;
 
-    glm::vec3 position = glm::vec3(0.0f, 0.0f, 3.0f);
-    glm::vec3 front = glm::vec3(0.0f, 0.0f, -1.0f);
+    glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 front = glm::vec3(0.0f, 0.0f, -1.0f);    
+    glm::vec3 right = glm::vec3(1.0f, 0.0f, 0.0f); 
     glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-
+        
     // Creates the View Matrix: Defines where the camera is looking
     glm::mat4 GetViewMatrix() {
-        return glm::lookAt(position, position + front, up);
+        return glm::lookAt(position, position + front, glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
     // Creates the Projection Matrix: Defines the FOV and perspective
@@ -22,22 +46,37 @@ public:
         return glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
     }
 
-    void RotateCamera(float xOffset, float yOffset) {    
-        yaw += xOffset;
-        pitch += yOffset; // Note: You might need to swap +/- depending on your preference
+    void Camera::SetDirection(glm::vec3 direction) {
+        
+        // Normalize the direction to ensure it's a unit vector
+        direction = glm::normalize(direction);
+
+        // Calculate Pitch (Vertical angle)
+        // The asin of the y-component gives the angle in radians
+        pitch = glm::degrees(asin(-direction.y));
+
+        // Calculate Yaw (Horizontal angle)        
+        yaw = glm::degrees(atan2(direction.z, direction.x));
+
+        // Safety: Clamp pitch to prevent flipping
+        if (pitch > 89.0f)  pitch = 89.0f;
+        if (pitch < -89.0f) pitch = -89.0f;
+
+        // 4. Update the internal front, right, and up vectors
+        UpdateCameraVectors();
+    }
+
+    
+    
+    void RotateCamera(float xOffset, float yOffset) {   
+         
+        yaw += xOffset * mouseSensitivity;
+        pitch += yOffset * mouseSensitivity; // Note: You might need to swap +/- depending on your preference
         
         // Constrain the pitch to prevent flipping
         if(pitch > 89.0f) pitch = 89.0f;
-        if(pitch < -89.0f) pitch = -89.0f;
-
-        // Update the front vector based on yaw and pitch
-        glm::vec3 newFront;
-
-        newFront.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));        
-        // when mouse move up player look up to make this we need to put negative sign before sin(pitch) 
-        //because in OpenGL the positive Y axis is up, but when we look up we want to decrease the Y value of the front vector
-        newFront.y = -sin(glm::radians(pitch));
-        newFront.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-        front = glm::normalize(newFront);
+        if(pitch < -89.0f) pitch = -89.0f;        
+       
+        UpdateCameraVectors();
     }   
 };

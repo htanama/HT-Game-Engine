@@ -15,7 +15,7 @@ xcopy /s /y "shaders" "build\shaders\"
 
 REM 4. Compile and Link
 REM Note: Using the paths visible in your screenshot
-cl /EHsc /Zi ^
+cl /EHsc /Zi /std:c++17^
  /I "SDL3-3.4.8\include" ^
  /I "glm" ^
  /I "imgui" ^

@@ -2,6 +2,7 @@
 #include <glm/glm.hpp>                   // Core GLM functionality (vec3, mat4, etc.)
 #include <memory>
 #include "Mesh.h"
+#include "Camera.h"
 
 struct Transform{
     glm::vec3 position{0.0f};
@@ -9,10 +10,16 @@ struct Transform{
     glm::vec3 scale{1.0f};
 };
 
+struct CameraComponent {
+    Camera camera;
+    bool isPlayerCamera = false; // True if this camera should be used for player view
+};
+
 // The Renderable component tells the RenderSystem which mesh to draw for this entity, 
 // and what color to use if not using vertex colors.
 struct Renderable {
-    Mesh* mesh = nullptr; // Pointer to the mesh to render
+    // Mesh* mesh = nullptr; // Pointer to the mesh to render
+    std::shared_ptr<Mesh> mesh;
     glm::vec3 color = glm::vec3(1.0f); // Default color (white)
     bool isVertexColor = false; // Whether to use vertex colors or a default shader color
 };
@@ -33,4 +40,8 @@ struct RotationComponent {
 
 struct LifetimeComponent {
     float remainingTime = 60.0f; // 60 seconds
+};
+
+struct NameComponent {
+    std::string name;
 };

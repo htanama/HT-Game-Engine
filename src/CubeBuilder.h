@@ -1,3 +1,5 @@
+// This is a helper file to generate cube vertex 
+// and index data for different sized cubes (e.g., player, floor, projectiles).
 #pragma once
 #include <vector>
 #include <glm/glm.hpp>
@@ -8,16 +10,16 @@
 float cubeVertices[] = {
     // Front face
     -0.5f, -0.5f,  0.5f,
-    0.5f, -0.5f,  0.5f,
-    0.5f,  0.5f,  0.5f,
-    0.5f,  0.5f,  0.5f,
+     0.5f, -0.5f,  0.5f,
+     0.5f,  0.5f,  0.5f,
+     0.5f,  0.5f,  0.5f,
     -0.5f,  0.5f,  0.5f,
     -0.5f, -0.5f,  0.5f,
     // Back face
     -0.5f, -0.5f, -0.5f,
-    0.5f, -0.5f, -0.5f,
-    0.5f,  0.5f, -0.5f,
-    0.5f,  0.5f, -0.5f,
+     0.5f, -0.5f, -0.5f,
+     0.5f,  0.5f, -0.5f,
+     0.5f,  0.5f, -0.5f,
     -0.5f,  0.5f, -0.5f,
     -0.5f, -0.5f, -0.5f,
     // Left face
@@ -28,28 +30,27 @@ float cubeVertices[] = {
     -0.5f, -0.5f,  0.5f,
     -0.5f,  0.5f,  0.5f,
     // Right face
-    0.5f,  0.5f,  0.5f,
-    0.5f,  0.5f, -0.5f,
-    0.5f, -0.5f, -0.5f,
-    0.5f, -0.5f, -0.5f,
-    0.5f, -0.5f,  0.5f,
-    0.5f,  0.5f,  0.5f,
+     0.5f,  0.5f,  0.5f,
+     0.5f,  0.5f, -0.5f,
+     0.5f, -0.5f, -0.5f,
+     0.5f, -0.5f, -0.5f,
+     0.5f, -0.5f,  0.5f,
+     0.5f,  0.5f,  0.5f,
     // Bottom face
     -0.5f, -0.5f, -0.5f,
-    0.5f, -0.5f, -0.5f,
-    0.5f, -0.5f,  0.5f,
-    0.5f, -0.5f,  0.5f,
+     0.5f, -0.5f, -0.5f,
+     0.5f, -0.5f,  0.5f,
+     0.5f, -0.5f,  0.5f,
     -0.5f, -0.5f,  0.5f,
     -0.5f, -0.5f, -0.5f,
     // Top face
     -0.5f,  0.5f, -0.5f,
-    0.5f,  0.5f, -0.5f,
-    0.5f,  0.5f,  0.5f,
-    0.5f,  0.5f,  0.5f,
+     0.5f,  0.5f, -0.5f,
+     0.5f,  0.5f,  0.5f,
+     0.5f,  0.5f,  0.5f,
     -0.5f,  0.5f,  0.5f,
     -0.5f,  0.5f, -0.5f
 };
-
 
 inline void GetPlayerCubeData(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) {
     vertices.clear();
@@ -60,7 +61,7 @@ inline void GetPlayerCubeData(std::vector<Vertex>& vertices, std::vector<unsigne
     float depth = 0.08f;  
     
     // 0.85f * 2 = 1.7f total height (The "shorter" part)
-    float height = 0.85f;
+    float height = 0.50f;
 
     // Front Face (Z = 0.08)
     vertices.emplace_back(glm::vec3(-width, -height,  depth), glm::vec3(1,0,0), glm::vec3(0,0,1)); // 0
