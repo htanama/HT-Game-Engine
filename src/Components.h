@@ -20,6 +20,7 @@ struct CameraComponent {
 struct Renderable {
     // Mesh* mesh = nullptr; // Pointer to the mesh to render
     std::shared_ptr<Mesh> mesh;
+    std::string meshPath; // Keep track of the source file
     glm::vec3 color = glm::vec3(1.0f); // Default color (white)
     bool isVertexColor = false; // Whether to use vertex colors or a default shader color
 };

@@ -64,20 +64,23 @@ public:
             // Check a flag (like hasName) to see if the entity is truly gone
             if (!hasName[i]) { 
                 names.erase(names.begin() + i);
-                hasTransform.erase(hasTransform.begin() + i);
+                transforms.erase(transforms.begin() + i);
                 renderables.erase(renderables.begin() + i);
                 velocities.erase(velocities.begin() + i);
                 colors.erase(colors.begin() + i);
                 rotations.erase(rotations.begin() + i);
                 lifetimes.erase(lifetimes.begin() + i);
+                cameras.erase(cameras.begin() + i);
                 
+                hasName.erase(hasName.begin() + i);
                 hasTransform.erase(hasTransform.begin() + i);
                 hasRenderable.erase(hasRenderable.begin() + i);
                 hasVelocity.erase(hasVelocity.begin() + i);
                 hasColor.erase(hasColor.begin() + i);
                 hasRotation.erase(hasRotation.begin() + i);
                 hasLifetime.erase(hasLifetime.begin() + i);
-                hasName.erase(hasName.begin() + i);
+                hasCamera.erase(hasCamera.begin() + i);
+               
             }
         }        
     }
