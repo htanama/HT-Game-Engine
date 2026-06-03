@@ -33,19 +33,10 @@ static EditorState gameState = EditorState::Editor;
 
 std::vector<float> gridVertices;
 
-// Global References
-std::shared_ptr<Mesh> playerMesh = nullptr;
-std::shared_ptr<Mesh> projectileMesh = nullptr;
-std::shared_ptr<Mesh> playerCameraMesh = nullptr;
-std::shared_ptr<Mesh> testCubeMesh = nullptr;
-std::shared_ptr<Mesh> testCubeMesh2 = nullptr;
-std::shared_ptr<Mesh> floorMesh = nullptr;
-
-Entity playerEntity, playerCameraEntity;
 std::unique_ptr<DebugRenderer> debugRenderer;
 std::vector<std::string> logMessages;
 
-Camera editorCamera;  
+Camera editorCamera, playerCamera;  
 
 // INPUT MAPPING STRUCTURE
 // We store the state of keys here. This allows the logic to check "is W held?" 
@@ -69,7 +60,7 @@ bool needsSnap = true; // Flag to control the one-time snap editorCamera
 bool isRunning = true; // game is running or editor is running
 bool requestCameraReset = false;
 
-void RunGamePlay();
+void RunGamePlay(Registry& reg, Entity player, Camera& cam, InputState& input, float deltaTime);
 
 void Log(const std::string& message) {
     std::cout << message << std::endl;
@@ -193,6 +184,7 @@ void DrawEditorUI(Registry& registry, Entity& selectedEntity, EditorState& gameS
         if (gameState == EditorState::Editor) {
             if (ImGui::Button(" Play ", ImVec2(buttonWidthPlay, 0))){ 
                 gameState = EditorState::Playing; 
+                Log("State changed to Playing");
                 needsSnap = false;
             }
         } else {
@@ -200,6 +192,7 @@ void DrawEditorUI(Registry& registry, Entity& selectedEntity, EditorState& gameS
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 1.0f));
             if (ImGui::Button(" Stop ", ImVec2(buttonWidthPlay, 0))){ 
                 gameState = EditorState::Editor; 
+                Log("State changed to Editor Mode");
                 needsSnap = true;
             }
             ImGui::PopStyleColor();
@@ -220,7 +213,7 @@ void DrawEditorUI(Registry& registry, Entity& selectedEntity, EditorState& gameS
             Entity newEnt = registry.CreateEntity();
         
             // 1. Create and get the mesh from your library
-            std::shared_ptr<Mesh> cubeMesh = CreateNewCubeMesh();
+            std::shared_ptr<Mesh> cubeMesh = MeshManager::CreateNewCubeMesh();
             
             // 2. Register components
             registry.AddTransform(newEnt, { glm::vec3(0.0f), glm::vec3(1.0f) });
@@ -294,7 +287,7 @@ void DrawEditorUI(Registry& registry, Entity& selectedEntity, EditorState& gameS
 
         if (entityToDelete != (Entity)-1) {            
             RequestDeleteEntity(registry, entityToDelete);
-            CleanupUnusedMeshes();
+            MeshManager::CleanupUnusedMeshes();
             
             // Reset selection if we deleted the currently selected one
             if (selectedEntity == entityToDelete) {
@@ -427,6 +420,77 @@ void GetCurrentFrame(const float &deltaTime){
     ImGui::End();
 }
 
+
+Entity CreatePlayer(Registry& registry) {
+    Entity player = registry.CreateEntity();
+
+    // Position & Transform
+    registry.hasTransform[player] = true;
+    registry.transforms[player].position = glm::vec3(0.0f, 1.0f, 0.0f);
+    registry.transforms[player].scale = glm::vec3(0.5f, 1.0f, 0.5f); // Player dimensions
+
+    // Rendering
+    registry.hasRenderable[player] = true;
+    // Assuming you have your MeshManager setup
+    registry.renderables[player].mesh = MeshManager::CreateNewCubeMesh();
+    registry.renderables[player].color = glm::vec3(0.8f, 0.2f, 0.2f); // Give the player a distinct color
+
+    // Movement / Logic components
+    registry.hasVelocity[player] = true;
+    registry.velocities[player].value = glm::vec3(0.0f);
+
+    registry.hasName[player] = true;
+    registry.names[player].name = "Player";
+
+    return player;
+}
+
+void ResetPlayer(Registry& reg, Entity playerID) {
+    reg.transforms[playerID].position = glm::vec3(0.0f, 1.0f, 0.0f);
+    reg.velocities[playerID].value = glm::vec3(0.0f);
+}
+
+
+void ToggleGameState(EditorState& state) {
+    if (state == EditorState::Editor) {
+        state = EditorState::Playing;
+        // Sync player camera to editor camera position and rotation
+        playerCamera.position = editorCamera.position;
+        playerCamera.yaw = editorCamera.yaw;
+        playerCamera.pitch = editorCamera.pitch;
+        playerCamera.UpdateCameraVectors(); // Important!
+        
+        SDL_SetWindowRelativeMouseMode(window, true); // Lock mouse
+    } else {
+        state = EditorState::Editor;
+        SDL_SetWindowRelativeMouseMode(window, false); // Unlock mouse
+    }
+}
+
+unsigned int fboID, textureColorBufferID, depthRenderBufferID;
+
+void InitGameplayFramebuffer() {
+    glGenFramebuffers(1, &fboID);
+    glBindFramebuffer(GL_FRAMEBUFFER, fboID);
+
+    glGenTextures(1, &textureColorBufferID);
+    glBindTexture(GL_TEXTURE_2D, textureColorBufferID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WINDOW_WIDTH, WINDOW_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorBufferID, 0);
+
+    glGenRenderbuffers(1, &depthRenderBufferID);
+    glBindRenderbuffer(GL_RENDERBUFFER, depthRenderBufferID);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WINDOW_WIDTH, WINDOW_HEIGHT);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthRenderBufferID);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 int main(int argc, char* argv[]) {        
     SDL_Initializaton();
     // --- ImGui Initialization ---
@@ -437,12 +501,18 @@ int main(int argc, char* argv[]) {
     ImGui_ImplOpenGL3_Init("#version 460");      
     
 
+    // Initialize Framebuffer ONCE before the loop
+    InitGameplayFramebuffer();
+
     debugRenderer = std::make_unique<DebugRenderer>();
     Uint64 lastTime = SDL_GetTicks();
     Shader myShader("shaders/opengl_vertex.glsl", "shaders/opengl_fragment.glsl");     
     Shader debug_lineShader("shaders/debug_line_vertex.glsl", "shaders/debug_line_fragment.glsl");
     SDL_Event event; 
+    
     Registry registry;
+    Entity playerID = CreatePlayer(registry);
+
     InputState input;     
     float moveSpeed = 1.00f;   
     editorCamera.position = glm::vec3(0.0f, 5.0f, 15.0f);
@@ -469,7 +539,7 @@ int main(int argc, char* argv[]) {
         // Use this instead of SDL_GetWindowSize to handle high-DPI screens correctly
         SDL_GetWindowSizeInPixels(window, &width, &height);
 
-        // Update the Viewport to match the actual pixel dimensions
+        // Update the Viewport to match the actual pixel dimensions        
         glViewport(0, 0, width, height);
 
         SDL_GetWindowSize(window, &width, &height);
@@ -477,9 +547,7 @@ int main(int argc, char* argv[]) {
         float currentAspectRatio = (float)width / (float)height; 
         float mouseDeltaX, mouseDeltaY;
 
-        while (SDL_PollEvent(&event)) {
-            ImGui_ImplSDL3_ProcessEvent(&event);    
-
+        while (SDL_PollEvent(&event)) {              
             // Handle Mouse Button Toggles
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_RIGHT)
                 isRightMouseButtonDown = true;
@@ -517,8 +585,28 @@ int main(int argc, char* argv[]) {
                 }
             }
 
+            // Change to Gameplay by Pressing F5
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F5) {                
+                if (gameState == EditorState::Editor) {
+                    gameState = EditorState::Playing;
+                    auto& pTransform = registry.transforms[playerID];
+                    playerCamera.position = pTransform.position + glm::vec3(0.0f, 1.6f, 0.0f);
+                    playerCamera.yaw = -90.0f;   // Look straight ahead
+                    playerCamera.pitch = 0.0f;   // Look at horizon                 
+                    playerCamera.UpdateCameraVectors();
+                } else {
+                    gameState = EditorState::Editor;
+                }
+            }
+            
+            ImGui_ImplSDL3_ProcessEvent(&event);  
+            
             if (isRightMouseButtonDown) {
-                editorCamera.RotateCamera(mouseDeltaX * 0.1f, mouseDeltaY * 0.1f);
+                if (gameState == EditorState::Playing) {
+                    playerCamera.RotateCamera(mouseDeltaX * 0.1f, mouseDeltaY * 0.1f);                    
+                } else if (gameState == EditorState::Editor) {                  
+                    editorCamera.RotateCamera(mouseDeltaX * 0.1f, mouseDeltaY * 0.1f);
+                }
             }
 
         }
@@ -549,35 +637,50 @@ int main(int argc, char* argv[]) {
         } else {
             cameraSpeed = moveSpeed * 1.5f; // Default speed when Shift is not pressed
         }
-        if (input.forward)  editorCamera.position += editorCamera.front * cameraSpeed * deltaTime;
-        if (input.backward) editorCamera.position -= editorCamera.front * cameraSpeed * deltaTime;
-        if (input.left)     editorCamera.position -= editorCamera.right * cameraSpeed * deltaTime;
-        if (input.right)    editorCamera.position += editorCamera.right * cameraSpeed * deltaTime;        
-
-        // Prepare for 3D Rendering
-        glEnable(GL_DEPTH_TEST);        
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);     
-                
-        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        if (status != GL_FRAMEBUFFER_COMPLETE) {
-            std::cout << "ERROR: Framebuffer is not complete! Status: " << status << std::endl;
+        
+        // --- Logic Update ---
+        if (gameState == EditorState::Playing) {
+            RunGamePlay(registry, playerID, playerCamera, input, deltaTime);
+        }      
+  
+        if (gameState == EditorState::Playing) {
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, fboID);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+            glBlitFramebuffer(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 
+                        0, 0, width, height, 
+                        GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        }
+        
+        if (gameState == EditorState::Editor) {
+            // Editor Movement Logic (Your existing input code)
+            if (input.forward)  editorCamera.position += editorCamera.front * cameraSpeed * deltaTime;
+            if (input.backward) editorCamera.position -= editorCamera.front * cameraSpeed * deltaTime;
+            if (input.left)     editorCamera.position -= editorCamera.right * cameraSpeed * deltaTime;
+            if (input.right)    editorCamera.position += editorCamera.right * cameraSpeed * deltaTime;     
         }
 
-        if (myShader.ID == 0) {
-            std::cerr << "CRITICAL: Shader failed to compile! Check file paths." << std::endl;
-        } 
+        // --- Rendering ---
+        // Pick camera based on state
+        Camera* activeCam = (gameState == EditorState::Playing) ? &playerCamera : &editorCamera;
 
+        // Use your FBO resolution (e.g., 1920x1080) for Playing, window size for Editor
+        float aspect = (gameState == EditorState::Playing) 
+                       ? (WINDOW_WIDTH/ WINDOW_HEIGHT) 
+                       : ((float)width / (float)height);
+
+        // Prepare for 3D Rendering        
         glClearColor(0.17f, 0.62f, 0.82f, 1.0f); // blue   
-        
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);                    
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);        
 
-        glm::mat4 projection = editorCamera.GetProjectionMatrix(currentAspectRatio);
+        // glm::mat4 projection = editorCamera.GetProjectionMatrix(currentAspectRatio);
         
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
         //Draw your 3D Scene
         myShader.use();                  
-        myShader.setMat4("view", editorCamera.GetViewMatrix());
-        myShader.setMat4("projection", projection);      
+        myShader.setMat4("view", activeCam->GetViewMatrix());
+        myShader.setMat4("projection", activeCam->GetProjectionMatrix(currentAspectRatio));     
         
         // Iterate through every possible entity ID
         // Set the model matrix using your transform component (if it exists)
@@ -627,22 +730,14 @@ int main(int argc, char* argv[]) {
                 }
                 
                 // Render the mesh using its own draw function
-                renderable.mesh->draw();
+                if (renderable.mesh != nullptr) {
+                    renderable.mesh->draw();
+                }
             }
-        }
-
-        // Draw X Axis (Red)
-        debugRenderer->AddLine(glm::vec3(0,0,0), glm::vec3(50,0,0));           
-        // Draw Y Axis (Green)
-        debugRenderer->AddLine(glm::vec3(0,0,0), glm::vec3(0,50,0));       
-        // Draw Z Axis (Blue)
-        debugRenderer->AddLine(glm::vec3(0,0,0), glm::vec3(0,0,50)); 
-
-       
-        // RenderSystem(registry, myShader, 0.0f); // Use your existing RenderSystem
-        debugRenderer->Render(editorCamera.GetViewMatrix(), editorCamera.GetProjectionMatrix(currentAspectRatio), glm::vec3(1, 1, 1));
+        }            
         
-         if (gameState == EditorState::Editor){
+        // Editor UI / Overlay
+        if (gameState == EditorState::Editor){
             glBindVertexArray(gridVAO);
             glDrawArrays(GL_LINES, 0, count);
             SDL_SetWindowRelativeMouseMode(window, false);
@@ -657,16 +752,21 @@ int main(int argc, char* argv[]) {
         GetCurrentFrame(deltaTime);
 
         // Draw your UI
-        DrawEditorUI(registry, selectedEntity, gameState, 0.0f, 60.0f);
-
-        if (gameState == EditorState::Playing){
-            RunGamePlay();
-        }     
+        if (gameState == EditorState::Editor) {
+            DrawEditorUI(registry, selectedEntity, gameState, 0.0f, 60.0f);   
+            // Draw X Axis (Red)
+            debugRenderer->AddLine(glm::vec3(0,0,0), glm::vec3(50,0,0));           
+            // Draw Y Axis (Green)
+            debugRenderer->AddLine(glm::vec3(0,0,0), glm::vec3(0,50,0));       
+            // Draw Z Axis (Blue)
+            debugRenderer->AddLine(glm::vec3(0,0,0), glm::vec3(0,0,50)); 
+            debugRenderer->Render(editorCamera.GetViewMatrix(), editorCamera.GetProjectionMatrix(currentAspectRatio), glm::vec3(1, 1, 1));
+        }
+           
          
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());         
-        
-      
+              
         GLenum err = glGetError(); 
         if (err != GL_NO_ERROR) {
             Log("OpenGL Error: " + std::to_string(err) + " detected in RenderLoop");
@@ -677,46 +777,15 @@ int main(int argc, char* argv[]) {
 
 }
 
-void RunGamePlay(){
-    unsigned int fboID;
-    unsigned int textureColorBufferID;
-    unsigned int depthRenderBufferID;
+void RunGamePlay(Registry& reg, Entity player, Camera& cam, InputState& input, float deltaTime) {        
+    auto& transform = reg.transforms[player];
+    float speed = 3.0f * deltaTime;
 
-    // Create FBO
-    glGenFramebuffers(1, &fboID);
-    glBindFramebuffer(GL_FRAMEBUFFER, fboID);
+    if (input.forward)  transform.position += cam.front * speed;
+    if (input.backward) transform.position -= cam.front * speed;
+    if (input.left)     transform.position -= cam.right * speed;
+    if (input.right)    transform.position += cam.right * speed;
 
-    // Create the texture we will render into
-    glGenTextures(1, &textureColorBufferID);
-    glBindTexture(GL_TEXTURE_2D, textureColorBufferID);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorBufferID, 0);
-
-    // Create Depth Buffer
-    glGenRenderbuffers(1, &depthRenderBufferID);
-    glBindRenderbuffer(GL_RENDERBUFFER, depthRenderBufferID);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, WINDOW_WIDTH, WINDOW_HEIGHT);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthRenderBufferID);
-
-    // Check if FBO is complete
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0); // Unbind FBO
-
-    SDL_SetWindowRelativeMouseMode(window, true);
-    SDL_HideCursor();
-
-    glBindFramebuffer(GL_FRAMEBUFFER, fboID);
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
-
-    // Clear Screen
-    glClearColor(0.53f, 0.81f, 0.92f, 1.0f); 
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); 
-
-    // exit gameplay
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to screen
+    cam.position = reg.transforms[player].position + glm::vec3(0.0f, 1.6f, 0.0f);
+    cam.UpdateCameraVectors(); // Ensure vectors update after position shift
 }

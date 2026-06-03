@@ -30,49 +30,6 @@ void RequestDeleteEntity(Registry& registry, Entity entityID) {
       
 }
 
-/*
-void RenderSystem(Registry& reg, Shader& shader, float time) {   
-    for (Entity i = 0; i < reg.hasTransform.size(); ++i) {     
-        
-        if (reg.hasTransform[i] && reg.hasRenderable[i]) {
-            // DEBUG:
-            std::cout << "Rendering entity " << i 
-              << " at " << reg.transforms[i].position.x << "," 
-              << reg.transforms[i].position.y << std::endl;
-
-            // Create a model matrix for this entity based on its Transform component
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, reg.transforms[i].position);
-                        
-            if(reg.hasRotation[i]){
-               reg.rotations[i].angle += reg.rotations[i].speed * time; // Rotate 20 degrees per second
-               model = glm::rotate(model, glm::radians(reg.rotations[i].angle), reg.rotations[i].axis);
-            }
-
-            // Pass the model matrix to the shader for this entity
-            shader.setMat4("model", model);
-
-            // If the Renderable component has a specific color and isn't using vertex colors, set that uniform
-            if (i < reg.hasColor.size() && reg.hasColor[i]) {
-                shader.setVec3("objectColor", reg.colors[i].color);
-                shader.setBool("isVertexColor", false);
-            } else {
-                shader.setBool("objectColor", true); // Tell shader to use vertex colors
-            }
-
-            // Draw the mesh associated with this entity
-            reg.renderables[i].mesh->draw();
-
-            GLenum err = glGetError();
-            if (err != GL_NO_ERROR) {
-                std::cout << "OpenGL Error: " << err << " at entity " << i << std::endl;
-            }
-        }
-    }
-}
-*/
-
-
 void MovementSystem(Registry& reg, float deltaTime) {
     // Iterate through the vector using an index to get the Entity ID
     for (size_t entity = 0; entity < reg.hasTransform.size(); ++entity) {
@@ -124,9 +81,17 @@ Entity GetProjectile(Registry& reg) {
     return reg.CreateEntity();
 }
 
+void CameraSystem(Registry& reg, Entity playerID, Camera& cam) {
+    if (playerID != -1 && reg.hasTransform[playerID]) {
+        // Sync position
+        glm::vec3 playerPos = reg.transforms[playerID].position;
+        cam.position = playerPos + glm::vec3(0.0f, 1.6f, 0.0f); // 1.6f offset for head height
+        
+        // Ensure the camera recalculates the view matrix using its new position
+        cam.UpdateCameraVectors();
+    }
+}
 
-
-// Debug Testing only
 void RenderSystem(Registry& reg, Shader& shader, float time) {
     std::cout << "Rendering!!!! " << std::endl;
     

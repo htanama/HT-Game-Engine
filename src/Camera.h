@@ -5,6 +5,26 @@
 class Camera {
 private:
     float mouseSensitivity = 0.5f;
+    
+public:      
+    float yaw = -90.0f; // Start facing forward
+    float pitch = 0.0f;
+
+    glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 front = glm::vec3(0.0f, 0.0f, -1.0f);    
+    glm::vec3 right = glm::vec3(1.0f, 0.0f, 0.0f); 
+    glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+        
+    // Creates the View Matrix: Defines where the camera is looking
+    glm::mat4 GetViewMatrix() {
+        return glm::lookAt(position, position + front, glm::vec3(0.0f, 1.0f, 0.0f));
+    }
+
+    // Creates the Projection Matrix: Defines the FOV and perspective
+    glm::mat4 GetProjectionMatrix(float aspect){
+        return glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
+    }
+
     void UpdateCameraVectors() {    
         // Update the front vector based on yaw and pitch
         glm::vec3 newFront;
@@ -24,26 +44,6 @@ private:
         // Right is the cross product of Front and World Up
         right = glm::normalize(glm::cross(front, glm::vec3(0.0f, 1.0f, 0.0f)));
         up    = glm::normalize(glm::cross(right, front));
-    }
-    
-public:
-    // Add these persistent member variables
-    float yaw = -90.0f; // Start facing forward
-    float pitch = 0.0f;
-
-    glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
-    glm::vec3 front = glm::vec3(0.0f, 0.0f, -1.0f);    
-    glm::vec3 right = glm::vec3(1.0f, 0.0f, 0.0f); 
-    glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-        
-    // Creates the View Matrix: Defines where the camera is looking
-    glm::mat4 GetViewMatrix() {
-        return glm::lookAt(position, position + front, glm::vec3(0.0f, 1.0f, 0.0f));
-    }
-
-    // Creates the Projection Matrix: Defines the FOV and perspective
-    glm::mat4 GetProjectionMatrix(float aspect){
-        return glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
     }
 
     void Camera::SetDirection(glm::vec3 direction) {
