@@ -81,7 +81,7 @@ public:
     glm::vec3 GetForward() {
         glm::vec3 forward;
         forward.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-        forward.y = sin(glm::radians(pitch));
+        forward.y = -sin(glm::radians(pitch));
         forward.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
         return glm::normalize(forward);
     }

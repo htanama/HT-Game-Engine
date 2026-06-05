@@ -646,8 +646,12 @@ void DrawEditorUI(Registry& registry, Entity& selectedEntity, EditorState& gameS
 
         ImGui::SetCursorPosX((ImGui::GetWindowWidth() - totalGroupWidth) * 0.5f);
 
-        if (ImGui::Button(" Origin ", ImVec2(buttonWidthOrigin,0))) {
-            requestCameraReset = true;            
+        if (ImGui::Button(" 2D ", ImVec2(buttonWidthOrigin,0))) {
+            // TODO: Change to 2D Scene          
+        }
+
+        if (ImGui::Button(" 3D ", ImVec2(buttonWidthOrigin,0))) {
+            // TODO: Change to 3D Scene            
         }
         
         ImGui::SameLine(0, spacing); // Keep them on the same line
@@ -838,6 +842,9 @@ void DrawEditorUI(Registry& registry, Entity& selectedEntity, EditorState& gameS
                      
         ImGui::Text("Pitch: %.2f", editorCamera.pitch);
         ImGui::Text("Yaw: %.2f", editorCamera.yaw);
+    }
+    if (ImGui::Button("Origin")) {
+            requestCameraReset = true;            
     }
     ImGui::End(); 
         
