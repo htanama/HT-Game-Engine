@@ -17,11 +17,12 @@ REM 4. Compile and Link
 REM Note: Using the paths visible in your screenshot
 cl /EHsc /Zi /std:c++17^
  /I "SDL3-3.4.8\include" ^
+ /I "core" ^
  /I "glm" ^
  /I "imgui" ^
  /I "imgui\backends" ^
  /I "glad\include" ^
- src\Main.cpp ^
+ Main.cpp ^
  glad\src\glad.c ^
  imgui\imgui.cpp ^
  imgui\imgui_draw.cpp ^
