@@ -315,7 +315,7 @@ int main(int argc, char* argv[]) {
  
 
     unsigned int gridVAO, gridVBO;
-    int count; // grid count
+    int gridCount; // grid count
 
     while (isRunning) {               
          // Calculate deltaTime for smooth movement regardless of frame rate
@@ -326,14 +326,14 @@ int main(int argc, char* argv[]) {
         // Calculate fresh every frame so it works even if the window is resized
         int width, height;
 
+		// SDL_GetWindowSize(window, &width, &height);
         // Use this instead of SDL_GetWindowSize to handle high-DPI screens correctly
         SDL_GetWindowSizeInPixels(window, &width, &height);
 
         // Update the Viewport to match the actual pixel dimensions        
-        glViewport(0, 0, width, height);
-        SDL_GetWindowSize(window, &width, &height);
+        glViewport(0, 0, width, height);        
 
-        count = SetupGrid(gridVAO, gridVBO, width);
+        gridCount = SetupGrid(gridVAO, gridVBO, width);
 
         if (height == 0) height = 1; // Prevent division by zero            
         float currentAspectRatio = (float)width / (float)height; 
@@ -346,11 +346,16 @@ int main(int argc, char* argv[]) {
             if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && event.button.button == SDL_BUTTON_RIGHT)
                 isRightMouseButtonDown = false;
 
-            // Capture movement only when right-click is held
+            
+                // Capture movement only when right-click is held
             if (event.type == SDL_EVENT_MOUSE_MOTION && isRightMouseButtonDown) {
                 mouseDeltaX += event.motion.xrel;
                 mouseDeltaY += event.motion.yrel;
-            }      
+            }		
+			if (event.type == SDL_EVENT_MOUSE_WHEEL && gameState == EditorState::Editor) {				
+				float zoomSpeed = 1.0f;
+				editorCamera.position += editorCamera.GetForward() * (event.wheel.y * zoomSpeed);	
+			}
 
             if (event.type == SDL_EVENT_QUIT) isRunning = false;
 
@@ -379,17 +384,7 @@ int main(int argc, char* argv[]) {
 
             // Change to Gameplay by Pressing F5
             if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F5) { 
-                ToggleGameState(gameState, registry, playerID);
-                // if (gameState == EditorState::Editor) {
-                //     gameState = EditorState::Playing;
-                //     auto& pTransform = registry.transforms[playerID];
-                //     playerCamera.position = pTransform.position + glm::vec3(0.0f, 1.6f, 0.0f);
-                //     playerCamera.yaw = -90.0f;   // Look straight ahead
-                //     playerCamera.pitch = 0.0f;   // Look at horizon                 
-                //     playerCamera.UpdateCameraVectors();
-                // } else {
-                //     gameState = EditorState::Editor;
-                // }               
+                ToggleGameState(gameState, registry, playerID);                            
             }
             
             ImGui_ImplSDL3_ProcessEvent(&event);  
@@ -540,7 +535,7 @@ int main(int argc, char* argv[]) {
             gridShader.setMat4("projection", activeCam->GetProjectionMatrix(currentAspectRatio));  
             gridShader.setMat4("model", glm::mat4(1.0f)); 
             glBindVertexArray(gridVAO);
-            glDrawArrays(GL_LINES, 0, count);
+            glDrawArrays(GL_LINES, 0, gridCount);
           
             SDL_SetWindowRelativeMouseMode(window, false);
             SDL_ShowCursor();
