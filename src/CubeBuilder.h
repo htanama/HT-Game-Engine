@@ -119,7 +119,36 @@ inline void GetCubeData(std::vector<Vertex>& vertices, std::vector<unsigned int>
 
 }
 
+inline void GetCustomCubeData(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices, 
+                             float width, float height, float depth) {    
+    vertices.clear();
+    indices.clear();
 
+    float w = width / 2.0f;
+    float h = height / 2.0f;
+    float d = depth / 2.0f;
+
+    // Helper to add a face with a specific normal
+    auto AddFace = [&](glm::vec3 v1, glm::vec3 v2, glm::vec3 v3, glm::vec3 v4, glm::vec3 normal) {
+        unsigned int start = (unsigned int)vertices.size();
+        vertices.emplace_back(v1, glm::vec3(1,1,1), normal);
+        vertices.emplace_back(v2, glm::vec3(1,1,1), normal);
+        vertices.emplace_back(v3, glm::vec3(1,1,1), normal);
+        vertices.emplace_back(v4, glm::vec3(1,1,1), normal);
+        indices.insert(indices.end(), {start, start+1, start+2, start+2, start+3, start});
+    };
+
+    // Add 6 faces with correct normals
+    AddFace({-w,-h, d}, { w,-h, d}, { w, h, d}, {-w, h, d}, {0, 0, 1});   // Front
+    AddFace({ w,-h,-d}, {-w,-h,-d}, {-w, h,-d}, { w, h,-d}, {0, 0,-1});   // Back
+    AddFace({-w, h,-d}, {-w, h, d}, { w, h, d}, { w, h,-d}, {0, 1, 0});   // Top
+    AddFace({-w,-h, d}, {-w,-h,-d}, { w,-h,-d}, { w,-h, d}, {0,-1, 0});   // Bottom
+    AddFace({-w,-h,-d}, {-w,-h, d}, {-w, h, d}, {-w, h,-d}, {-1,0, 0});  // Left
+    AddFace({ w,-h, d}, { w,-h,-d}, { w, h,-d}, { w, h, d}, { 1,0, 0});  // Right
+}
+
+
+/* OLD GetCustomCubeData 
 inline void GetCustomCubeData(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices, 
                              float width, float height, float depth) {    
     vertices.clear();
@@ -158,5 +187,5 @@ inline void GetCustomCubeData(std::vector<Vertex>& vertices, std::vector<unsigne
         4, 5, 1, 1, 0, 4, // Bottom
         3, 2, 6, 6, 7, 3  // Top
     };
-
-}
+    
+}*/
