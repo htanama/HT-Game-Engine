@@ -12,3 +12,5 @@ CMakeCache.txt
 *.pdb
 *.ilk
 *.obj
+
+imgui.ini
