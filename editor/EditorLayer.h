@@ -1,4 +1,3 @@
-// include/editor/EditorLayer.h
 #pragma once
 
 #include <memory>
