@@ -1,6 +1,7 @@
 // include/editor/EditorLayer.h
 #pragma once
 
+#include <memory>
 #include "../core/Engine.h"
 #include "../imgui/imgui.h"
 #include "../imgui/backends/imgui_impl_sdl3.h"
@@ -8,6 +9,9 @@
 #include "../SDL3-3.4.8/include/SDL3/SDL.h"
 
 class EditorLayer {
+private:
+    std::shared_ptr<Renderer> m_Renderer; 
+    
 public:
     void Init(SDL_Window* window, SDL_GLContext context) {
         ImGui::CreateContext();

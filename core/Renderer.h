@@ -5,10 +5,14 @@
 
 class Renderer {
 
-public:
+private:
+    static const int WINDOW_WIDTH = 1920;
+    static const int WINDOW_HEIGHT = 1080;
+    
     unsigned int vao, vbo;
     unsigned int fbo, fboTexture;
-    
+
+    public:
     void Init() {
         float vertices[] = {
             -0.5f, -0.5f, 0.0f,
@@ -43,7 +47,27 @@ public:
 
         // Unbind to return to default rendering
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-                
+
+    }
+
+    inline int GetWindowWidth() const{
+        return WINDOW_WIDTH;
+    }
+
+    inline int GetWindowHeight() const{
+        return WINDOW_HEIGHT;
+    }
+    
+    void BindFBO() { 
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo); 
+    }
+
+    void UnbindFBO() { 
+        glBindFramebuffer(GL_FRAMEBUFFER, 0); 
+    }
+
+    unsigned int GetTextureID() { 
+        return fboTexture; 
     }
 
     void Draw() {
