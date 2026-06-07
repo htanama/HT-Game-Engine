@@ -1,9 +1,10 @@
 // include/editor/EditorLayer.h
 #pragma once
+
+#include "../core/Engine.h"
 #include "../imgui/imgui.h"
 #include "../imgui/backends/imgui_impl_sdl3.h"
 #include "../imgui/backends/imgui_impl_opengl3.h"
-
 #include "../SDL3-3.4.8/include/SDL3/SDL.h"
 
 class EditorLayer {
@@ -13,6 +14,7 @@ public:
     
         // Enable the Docking Feature
         ImGuiIO& io = ImGui::GetIO();
+        io.FontGlobalScale = 1.6f;
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     
         ImGui_ImplSDL3_InitForOpenGL(window, context);
@@ -27,24 +29,23 @@ public:
 
     void Draw() 
     {
+        // Dynamically get the size of the current UI window, not the whole application
+        ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+
         // 1. GLOBAL MENU BAR (Must be outside the DockSpace Host)
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("File")) {
                 if (ImGui::MenuItem("New Scene"))    { /* Logic */ }
                 if (ImGui::MenuItem("Save Scene"))   { /* Logic */ }
                 if (ImGui::MenuItem("Load Scene"))   { /* Logic */ }
-                if (ImGui::MenuItem("Exit"))         { /* Exit Logic */ }
+                if (ImGui::MenuItem("Exit"))        { Engine::SetIsRunning(false); }
                 ImGui::EndMenu();
             }
             ImGui::EndMainMenuBar();
         }
 
-        // 2. Setup the Host Window for the DockSpace
-        ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->WorkPos);
-        ImGui::SetNextWindowSize(viewport->WorkSize);
-        ImGui::SetNextWindowViewport(viewport->ID);
-        ImGui::SetNextWindowBgAlpha(0.0f); // Make host invisible
+        // Create a dockspace in main viewport, where central node is transparent.
+        ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 
         ImGuiWindowFlags host_flags = ImGuiWindowFlags_NoDocking | 
                                     ImGuiWindowFlags_NoTitleBar | 
@@ -54,39 +55,36 @@ public:
                                     ImGuiWindowFlags_NoBringToFrontOnFocus | 
                                     ImGuiWindowFlags_NoNavFocus;
 
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-        ImGui::Begin("MainDockSpaceHost", nullptr, host_flags);
-        ImGui::PopStyleVar(2);
-
-        // 3. Submit the DockSpace
-        ImGuiID dockspace_id = ImGui::GetID("MyMainDockSpace");
-        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
-
-        // 4. Windows (These will now dock into the host)
-        ImGui::Begin("LeftPanel");
-        ImGui::BeginChild("HierarchyChild", ImVec2(0, ImGui::GetContentRegionAvail().y * 0.5f), true);
-        ImGui::Text("Hierarchy");
-        ImGui::EndChild();
-        ImGui::BeginChild("FileChild", ImVec2(0, 0), true);
-        ImGui::Text("File System");
-        ImGui::EndChild();
+        
+        ImGui::Begin("Scene"); // ImGuiCond_FirstUseEver
+            ImGui::BeginChild("HierarchyChild", ImVec2(0, ImGui::GetContentRegionAvail().y * 0.5f), true);
+            ImGui::Text("Hierarchy");
+            ImGui::EndChild();
+            ImGui::BeginChild("FileChild", ImVec2(0, 0), true);
+            ImGui::Text("File System");
+            ImGui::EndChild();
         ImGui::End();
 
         ImGui::Begin("Inspector");
-        ImGui::Text("Transform");
-        static float pos[3], rot[3], scale[3] = {1.0f, 1.0f, 1.0f};
-        ImGui::DragFloat3("Position", pos);
-        ImGui::DragFloat3("Rotation", rot);
-        ImGui::DragFloat3("Scale", scale);
+            ImGui::Text("Transform");
+            static float pos[3], rot[3], scale[3] = {1.0f, 1.0f, 1.0f};
+            ImGui::DragFloat3("Position", pos);
+            ImGui::DragFloat3("Rotation", rot);
+            ImGui::DragFloat3("Scale", scale);
         ImGui::End();
 
         ImGui::Begin("Output Console");
-        ImGui::Text("Log: Engine initialized...");
+            const std::vector<std::string>& messages = Logger::GetLogMessages();
+            // Sent all logMessages here
+            for (std::vector<std::string>::const_iterator it = messages.begin(); it != messages.end(); ++it) {
+                ImGui::TextUnformatted(it->c_str());
+            }
+            // with Ranged-Based for loop
+            // for (const auto& msg : Logger::GetLogMessages()){
+            //     ImGui::TextUnformatted(msg.c_str());
+            // }
         ImGui::End();
 
-        // 5. Close the Host Window (Must be at the very end)
-        ImGui::End();
     }
 
     void End() {

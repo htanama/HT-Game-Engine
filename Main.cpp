@@ -1,14 +1,16 @@
 #include <SDL3/SDL.h>
 #include "glad/glad.h"
+#include "../core/Engine.h"
 #include "core/Renderer.h"
 #include "editor/EditorLayer.h"
 
 static const int WINDOW_WIDTH = 1920;
 static const int WINDOW_HEIGHT = 1080;
+bool Engine::isRunning = true;
 
 int main(int argc, char* argv[]) {
     SDL_Init(SDL_INIT_VIDEO);
-    SDL_Window* window = SDL_CreateWindow("Engine", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL);
+    SDL_Window* window = SDL_CreateWindow("Engine", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     SDL_GLContext context = SDL_GL_CreateContext(window);
     gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress);
 
@@ -17,14 +19,25 @@ int main(int argc, char* argv[]) {
 
     EditorLayer editor;
     editor.Init(window, context);
-
-    bool isRunning = true;
+   
     SDL_Event event;
 
-    while (isRunning) {
+    while (Engine::isRunning) {
         while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL3_ProcessEvent(&event);
-            if (event.type == SDL_EVENT_QUIT) isRunning = false;
+            if (event.type == SDL_EVENT_QUIT) Engine::SetIsRunning(false);
+
+            // Handle Window Resize
+            if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+                int newWidth = event.window.data1;
+                int newHeight = event.window.data2;
+
+                // 1. Update OpenGL Viewport
+                glViewport(0, 0, newWidth, newHeight);
+
+                // Update Renderer FBO
+                renderer.WindowResize(newWidth, newHeight);
+            }
         }
 
         // Render Game Scene
