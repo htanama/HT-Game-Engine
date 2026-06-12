@@ -1,6 +1,6 @@
 #include <SDL3/SDL.h>
 #include "glad/glad.h"
-#include "../core/Engine.h"
+#include "core/Engine.h"
 #include "core/Renderer.h"
 #include "editor/EditorLayer.h"
 

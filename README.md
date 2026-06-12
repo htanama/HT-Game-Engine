@@ -4,10 +4,10 @@ A custom, lightweight 3D game engine built from first principles in C++ using mo
 
 ## 🛠️ Tech Stack & Architecture
 
-* **Windowing & Input:** SDL3 (Simple DirectMedia Layer)
+* **Windowing & Input:** SDL3 (Simple DirectMedia Layer), version SDL3-3.4.8
 * **Graphics API:** OpenGL 4.6 (Core Profile)
 * **Mathematics:** GLM (OpenGL Mathematics)
-* **UI / Editor:** Dear ImGui
+* **UI / Editor:** Dear ImGui, docking
 
 ## 🚀 Active Roadmap (Agile Development)
 
@@ -22,8 +22,8 @@ This project is developed using structured Agile methodologies. Tasks are tracke
 
 ### Prerequisites
 
-* **Compiler:** C++20 compatible compiler (MSVC 19.29+, GCC 11+, or Clang 13+).
-* **Build System:** CMake 3.20 or higher.
+* **Compiler:** C++17 compatible compiler (MSVC 19.29+, GCC 11+, or Clang 13+).
+* **Build System:** CMake 3.24 or higher.
 * **Libraries:** SDL3 must be available on your system.
 
 ### Option 1: Visual Studio (Windows)

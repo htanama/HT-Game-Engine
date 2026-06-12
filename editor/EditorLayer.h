@@ -5,7 +5,7 @@
 #include "../imgui/imgui.h"
 #include "../imgui/backends/imgui_impl_sdl3.h"
 #include "../imgui/backends/imgui_impl_opengl3.h"
-#include "../SDL3-3.4.8/include/SDL3/SDL.h"
+#include <SDL3/SDL.h>
 
 class EditorLayer {
 private:
