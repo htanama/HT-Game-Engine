@@ -1,5 +1,6 @@
 
 # Using this package
+SDL Version 3-3.4.8
 
 This package contains SDL3 built for Visual Studio.
 

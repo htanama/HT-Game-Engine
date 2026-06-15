@@ -1,3 +1,4 @@
+Version 3-3.4.8
 Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
   
 This software is provided 'as-is', without any express or implied
