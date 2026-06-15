@@ -1,54 +1,19 @@
 #pragma once
 #include <glad/glad.h>
-#include <SDL3/SDL.h>
+
 #include "Log.h"
+#include "Shader.h"
+#include "Mesh.h"
 
 class Renderer {
 
 private:
     static const int WINDOW_WIDTH = 1920;
     static const int WINDOW_HEIGHT = 1080;
-    
-    unsigned int vao, vbo;
-    unsigned int fbo, fboTexture;
-
-    public:
-    void Init() {
-        float vertices[] = {
-            -0.5f, -0.5f, 0.0f,
-             0.5f, -0.5f, 0.0f,
-             0.0f,  0.5f, 0.0f
-        };
-
-        Logger::Log("Render initialization");
-
-        glGenVertexArrays(1, &vao);
-        glGenBuffers(1, &vbo);
-        glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);        
-
-        glGenFramebuffers(1, &fbo);
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-        // Create texture to render to
-        glGenTextures(1, &fboTexture);
-        glBindTexture(GL_TEXTURE_2D, fboTexture);
-
-        // Initial size (can be changed later if the window resizes)
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, WINDOW_WIDTH, WINDOW_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        
-        // Attach texture to framebuffer
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboTexture, 0);
-
-        // Unbind to return to default rendering
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    }
+   
+public:
+    int currentWindowWidth = WINDOW_WIDTH;
+    int currentWindowHeight = WINDOW_HEIGHT;
 
     inline int GetWindowWidth() const{
         return WINDOW_WIDTH;
@@ -58,28 +23,34 @@ private:
         return WINDOW_HEIGHT;
     }
     
-    void BindFBO() { 
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo); 
-    }
-
     void UnbindFBO() { 
         glBindFramebuffer(GL_FRAMEBUFFER, 0); 
     }
 
-    unsigned int GetTextureID() { 
-        return fboTexture; 
+    void DrawClearScreen(float red, float green, float blue, float alpha) const{
+        glClearColor(red, green, blue, alpha);
+        glClear(GL_COLOR_BUFFER_BIT);
     }
 
-    void Draw() {
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glBindVertexArray(vao);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+    // Drawing a simple non-indexed object (like a single triangle)
+    void Draw(const Mesh& mesh, const Shader& shader) {
+        shader.use();
+        glBindVertexArray(mesh.Vao);
+        glDrawArrays(GL_TRIANGLES, 0,(GLsizei)mesh.vertices.size()); 
+        glBindVertexArray(0);
+    }
+
+    // Drawing a complex object (like a Cube)
+    void DrawIndexed(const Mesh& mesh, const Shader& shader) {
+        shader.use();
+        glBindVertexArray(mesh.Vao);
+        
+        glDrawElements(GL_TRIANGLES, (GLsizei)mesh.indices.size(), GL_UNSIGNED_INT, 0);
+        
+        glBindVertexArray(0);
     }
 
     void WindowResize(int width, int height){
-        if(width <= 0 || height <= 0) return; // prevent invalid sizes
-
-        glBindTexture(GL_TEXTURE_2D, fboTexture);
+        if(width <= 0 || height <= 0) return; // prevent invalid sizes        
     }
 };

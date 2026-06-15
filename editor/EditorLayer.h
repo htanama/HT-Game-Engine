@@ -1,17 +1,62 @@
 #pragma once
 
 #include <memory>
-#include "../core/Engine.h"
+#include "core/Engine.h"
+#include "core/Camera.h"
 #include "../imgui/imgui.h"
 #include "../imgui/backends/imgui_impl_sdl3.h"
 #include "../imgui/backends/imgui_impl_opengl3.h"
 #include <SDL3/SDL.h>
 
+
 class EditorLayer {
-private:
-    std::shared_ptr<Renderer> m_Renderer; 
+private: 
+    std::vector<float> gridVertices;
+    unsigned int m_gridVAO;
+    unsigned int m_gridVBO;
+    int m_gridCount; // grid count
+    int m_width = 0, m_height = 0;
+
+    int SetupGrid(unsigned int& vao, unsigned int& vbo, float width, float step = 1.0f) {
+        std::vector<float> vertices;
+
+        float halfWidth = width / 2.0f;
+
+        // Clean up old resources if they exist
+        if (vao != 0) {
+            glDeleteVertexArrays(1, &vao);
+        }
+        if (vbo != 0) {
+            glDeleteBuffers(1, &vbo);
+        }
+
+        // 1. Draw lines parallel to the X axis (spaced out along the Z axis)
+        for (float z = -halfWidth; z <= halfWidth; z += step) {
+            vertices.insert(vertices.end(), {-halfWidth, 0.0f, z,  halfWidth, 0.0f, z});
+        }
+
+        // 2. Draw lines parallel to the Z axis (spaced out along the X axis)
+        for (float x = -halfWidth; x <= halfWidth; x += step) {
+            vertices.insert(vertices.end(), {x, 0.0f, -halfWidth,  x, 0.0f, halfWidth});
+        }
+
+        glGenVertexArrays(1, &vao);
+        glGenBuffers(1, &vbo);
+        glBindVertexArray(vao);    
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        glBindVertexArray(0);
+        return (int)vertices.size() / 3;
+    }
     
-public:
+public:  
+    ~EditorLayer() {
+        glDeleteVertexArrays(1, &m_gridVAO);
+        glDeleteBuffers(1, &m_gridVBO);
+    }
+
     void Init(SDL_Window* window, SDL_GLContext context) {
         ImGui::CreateContext();
     
@@ -21,7 +66,12 @@ public:
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     
         ImGui_ImplSDL3_InitForOpenGL(window, context);
-        ImGui_ImplOpenGL3_Init("#version 410");
+        ImGui_ImplOpenGL3_Init("#version 410");                
+
+        SDL_GetWindowSizeInPixels(window, &m_width, &m_height);
+        glViewport(0, 0, m_width, m_height);
+        m_gridCount = SetupGrid(m_gridVAO, m_gridVBO, m_width);        
+
     }
 
     void Begin() {
@@ -87,14 +137,28 @@ public:
             //     ImGui::TextUnformatted(msg.c_str());
             // }
         ImGui::End();
-
+        
+        // TEmp
+        glDrawArrays(GL_LINES, 0, m_gridCount);
     }
+
 
     void End() {
         ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());  
     }
 
-
+    void Draw(Camera& camera, Shader& shader, float aspect) {       
+        // 1. Setup Matrices
+        glm::mat4 viewProj = camera.GetProjectionMatrix(aspect) * camera.GetViewMatrix();
+      
+        // 2. Draw Grid
+        shader.use();
+        shader.setMat4("u_ViewProjection", viewProj);
+        
+        glBindVertexArray(m_gridVAO);
+        glDrawArrays(GL_LINES, 0, m_gridCount);
+        glBindVertexArray(0);
+    }
 
 };

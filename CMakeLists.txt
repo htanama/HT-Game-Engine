@@ -14,11 +14,9 @@ set(GLAD_DIR "${CMAKE_SOURCE_DIR}/glad")
 
 # Project Files
 set(PROJECT_SOURCES main.cpp)
-set(PROJECT_HEADERS
-    core/Engine.h
-    core/Log.h
-    core/Renderer.h
-    editor/EditorLayer.h
+file(GLOB PROJECT_HEADERS
+    core/*.h
+    editor/*.h
 )
 
 # Import Precompiled SDL3
@@ -51,6 +49,11 @@ target_include_directories(imgui_lib PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
 # Define Executable
 add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS})
 
+# Force Visual Studio to set your project as the default startup project
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
+
+# Automatically set the Visual Studio working directory to the executable's output folder
+set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
 
 # Link & Include
 target_link_libraries(${PROJECT_NAME} PRIVATE 
@@ -66,9 +69,17 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${GLM_DIR}
 )
 
-# --- 7. Post-Build: Copy DLL ---
+# Post-Build: Copy DLL
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${SDL_DIR}/lib/x64/SDL3.dll"
     $<TARGET_FILE_DIR:${PROJECT_NAME}>
+)
+
+#  Shader Staging (Asset Pipeline)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/shaders"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders"
+    COMMENT "Syncing shaders to build directory for local execution"
 )
