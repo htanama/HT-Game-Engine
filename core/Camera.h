@@ -69,7 +69,7 @@ public:
         up    = glm::normalize(glm::cross(right, front));
     }
 
-    void Camera::SetDirection(glm::vec3 direction) {
+    void SetDirection(glm::vec3 direction) {
         
         // Normalize the direction to ensure it's a unit vector
         direction = glm::normalize(direction);

@@ -9,6 +9,13 @@
 
 bool Engine::isRunning = true;
 
+std::vector<Vertex> triangleVertices = { 
+	//   X   ,   Y   ,  Z   ,  Normal, TexCoords,   Tangent     Bitangent,  m_BoneIDs, m_Weights
+	{ { -0.5f, -0.5f, 0.0f }, {0,0,0},  {0,0},      {0,0,0},    {0,0,0},    {0},        {0} },
+	{ {  0.5f, -0.5f, 0.0f }, {0,0,0},  {0,0},      {0,0,0},    {0,0,0},    {0},        {0} },
+	{ {  0.0f,  0.5f, 0.0f }, {0,0,0},  {0,0},      {0,0,0},    {0,0,0},    {0},        {0} }
+}; 
+
 int main(int argc, char* argv[]) {    
     
     SDL_Init(SDL_INIT_VIDEO);
@@ -26,13 +33,6 @@ int main(int argc, char* argv[]) {
    
     Shader myShader("shaders/triangle_vertex.glsl", "shaders/triangle_fragment.glsl");
     Shader gridShader("shaders/grid_vertex.glsl", "shaders/grid_fragment.glsl");
-
-    std::vector<Vertex> triangleVertices = {
-        //   X   ,   Y   ,  Z   ,  Normal, TexCoords,   Tangent     Bitangent,  m_BoneIDs, m_Weights
-        { { -0.5f, -0.5f, 0.0f }, {0,0,0},  {0,0},      {0,0,0},    {0,0,0},    {0},        {0} },
-        { {  0.5f, -0.5f, 0.0f }, {0,0,0},  {0,0},      {0,0,0},    {0,0,0},    {0},        {0} },
-        { {  0.0f,  0.5f, 0.0f }, {0,0,0},  {0,0},      {0,0,0},    {0,0,0},    {0},        {0} }
-    };
 
     std::vector<unsigned int> triangleIndices = {}; 
     std::vector<Texture> triangleTextures = {}; 
