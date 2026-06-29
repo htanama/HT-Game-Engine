@@ -6,16 +6,22 @@
 #include "core/Shader.h"
 #include "editor/EditorLayer.h"
 #include "core/Camera.h"
+#include "core/ECS.h"
+#include "core/Systems.h"
 
 bool Engine::isRunning = true;
+extern Entity selectedEntity;
+extern Renderer renderer;
+Registry registry;
 
-int main(int argc, char* argv[]) {    
+extern EditorState gameState;
+
+int main(int argc, char* argv[]) {        
     
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_Init(SDL_INIT_VIDEO);   
     
-    Renderer renderer;
     
-    SDL_Window* window = SDL_CreateWindow("Engine", 
+    SDL_Window* window = SDL_CreateWindow("HT Game Engine", 
         renderer.GetWindowWidth(), 
         renderer.GetWindowHeight(), 
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
@@ -24,35 +30,26 @@ int main(int argc, char* argv[]) {
     SDL_GLContext context = SDL_GL_CreateContext(window);
     gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress);  
    
-    Shader myShader("shaders/triangle_vertex.glsl", "shaders/triangle_fragment.glsl");
+    Shader myShader("shaders/opengl_vertex.glsl", "shaders/opengl_fragment.glsl");
     Shader gridShader("shaders/grid_vertex.glsl", "shaders/grid_fragment.glsl");
-
-    std::vector<Vertex> triangleVertices = {
-        //   X   ,   Y   ,  Z   ,  Normal, TexCoords,   Tangent     Bitangent,  m_BoneIDs, m_Weights
-        { { -0.5f, -0.5f, 0.0f }, {0,0,0},  {0,0},      {0,0,0},    {0,0,0},    {0},        {0} },
-        { {  0.5f, -0.5f, 0.0f }, {0,0,0},  {0,0},      {0,0,0},    {0,0,0},    {0},        {0} },
-        { {  0.0f,  0.5f, 0.0f }, {0,0,0},  {0,0},      {0,0,0},    {0,0,0},    {0},        {0} }
-    };
-
-    std::vector<unsigned int> triangleIndices = {}; 
-    std::vector<Texture> triangleTextures = {}; 
-
-    Mesh myTriangle(triangleVertices, triangleIndices, triangleTextures);
 
     EditorLayer editor;
     editor.Init(window, context);
+    Logger::Log("Rendering Initialization Complete");
+    
     Camera editorCamera;
-    editorCamera.MovementSpeed = 1.0f;
+    float original_speed = 1.0f;
+    editorCamera.MovementSpeed = original_speed;
     editorCamera.position = glm::vec3(0.0f, 5.0f, 10.0f);
 
     SDL_Event event;
-    Uint64 lastTime = SDL_GetTicks();
+    Uint64 lastTime = SDL_GetTicks();          
 
     while (Engine::isRunning) {
         // Calculate deltaTime
         Uint64 currentTime = SDL_GetTicks();
         float deltaTime = static_cast<float>(currentTime - lastTime) / 1000.f; // covert from millisecond to second
-        lastTime = currentTime;
+        lastTime = currentTime;          
 
         while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL3_ProcessEvent(&event);
@@ -67,6 +64,11 @@ int main(int argc, char* argv[]) {
                 }
             }
 
+            if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+                float zoomSpeed = 1.0f;
+                editorCamera.position += editorCamera.GetForward() * (event.wheel.y * zoomSpeed);
+            }
+
             // Handle Window Resize
             if (event.type == SDL_EVENT_WINDOW_RESIZED) {
                 renderer.currentWindowWidth = event.window.data1;
@@ -78,35 +80,61 @@ int main(int argc, char* argv[]) {
                 // Update Renderer FBO
                 renderer.WindowResize(renderer.currentWindowWidth, renderer.currentWindowHeight);
             }
-        }
-
-        // 3. WASD Movement (Polling for continuous input)
+        }     
+               
+        // WASD Movement (Polling for continuous input)
         const bool* state = SDL_GetKeyboardState(NULL);
         if (state[SDL_SCANCODE_W]) editorCamera.ProcessKeyboard(FORWARD, deltaTime);
         if (state[SDL_SCANCODE_S]) editorCamera.ProcessKeyboard(BACKWARD, deltaTime);
         if (state[SDL_SCANCODE_A]) editorCamera.ProcessKeyboard(LEFT, deltaTime);
         if (state[SDL_SCANCODE_D]) editorCamera.ProcessKeyboard(RIGHT, deltaTime);
+        
+        if (state[SDL_SCANCODE_LCTRL] || state[SDL_SCANCODE_RCTRL]) {
+            if (ImGui::IsKeyPressed(ImGuiKey_S, false)) { // false means "do not repeat"
+                SceneSerializer::SaveScene(registry, "world.scene");                
+            }
+        }
+        
+        if (state[SDL_SCANCODE_LSHIFT]) 
+            editorCamera.MovementSpeed = 5.0f;
+        else {
+            editorCamera.MovementSpeed = original_speed;
+        }
+
+
+        float currentAspectRatio = (float)renderer.currentWindowWidth / renderer.currentWindowHeight;        
 
         // Render Game Scene
-        renderer.DrawClearScreen(0.45f, 0.81f, 0.97f, 1.0f);           
+        renderer.DrawClearScreen(0.45f, 0.81f, 0.97f, 1.0f);        
+        
+        // Render solid surface 
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-        renderer.Draw(myTriangle, myShader);
+        // Reset pixels to background color and resets distance to draw obj correctly front to back (depth buffer)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        float aspect = (float)renderer.currentWindowWidth / renderer.currentWindowHeight;
-        editor.Draw(editorCamera, gridShader, aspect);
+        // render objects closer to the camera appear in front of objects further away
+        glEnable(GL_DEPTH_TEST);
         
+
+        myShader.use();
+        myShader.setMat4("view", editorCamera.GetViewMatrix());
+        myShader.setMat4("projection", editorCamera.GetProjectionMatrix(currentAspectRatio));
+                
+        RenderSystem(registry, myShader);
+        
+        editor.Draw(editorCamera, gridShader, currentAspectRatio);
         // Render UI
         editor.Begin();
-        editor.Draw();
+        editor.Draw(editorCamera);
         editor.End();
 
         GLenum err = glGetError();
         if (err != GL_NO_ERROR) {
             Logger::Log("OpenGL Error: " + std::to_string(err) + " detected in RenderLoop");
         }
-
-        
-        SDL_GL_SwapWindow(window);
+                
+        SDL_GL_SwapWindow(window);           
     }
 
     SDL_GL_DestroyContext(context);

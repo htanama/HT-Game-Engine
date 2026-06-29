@@ -33,22 +33,22 @@ public:
     }
 
     // Drawing a simple non-indexed object (like a single triangle)
-    void Draw(const Mesh& mesh, const Shader& shader) {
+ /*   void Draw(const Mesh& mesh, const Shader& shader) {
         shader.use();
         glBindVertexArray(mesh.Vao);
         glDrawArrays(GL_TRIANGLES, 0,(GLsizei)mesh.vertices.size()); 
         glBindVertexArray(0);
-    }
+    }*/
 
     // Drawing a complex object (like a Cube)
-    void DrawIndexed(const Mesh& mesh, const Shader& shader) {
+    /*void DrawIndexed(const Mesh& mesh, const Shader& shader) {
         shader.use();
         glBindVertexArray(mesh.Vao);
         
         glDrawElements(GL_TRIANGLES, (GLsizei)mesh.indices.size(), GL_UNSIGNED_INT, 0);
         
         glBindVertexArray(0);
-    }
+    }*/
 
     void WindowResize(int width, int height){
         if(width <= 0 || height <= 0) return; // prevent invalid sizes        

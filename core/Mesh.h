@@ -1,116 +1,174 @@
-#pragma once
+#ifndef MESH_H
+#define MESH_H
+
 #include <glad/glad.h>
-
+#include <iostream>
 #include <vector>
-#include <string>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include <string>
+#include <cstddef> // Required for offsetof() to calculate memory alignment
 
-#define MAX_BONE_INFLUENCE 4
+// Element Buffer Object (EBO) (also known as an Index Buffer) is an OpenGL buffer object that
+// stores indices to reference specific vertices in a Vertex Buffer Object (VBO). 
 
+// Struct representing a single point in 3D space with multiple attributes
 struct Vertex {
-    // position
-    glm::vec3 Position;
-    // normal
-    glm::vec3 Normal;
-    // texCoords
-    glm::vec2 TexCoords;
-    // tangent
-    glm::vec3 Tangent;
-    // bitangent
-    glm::vec3 Bitangent;
-	//bone indexes which will influence this vertex
-	int m_BoneIDs[MAX_BONE_INFLUENCE];
-	//weights from each bone
-	float m_Weights[MAX_BONE_INFLUENCE];
+
+    glm::vec3 position = glm::vec3(0.0f); // Location (X, Y, Z)
+    glm::vec3 rotation = glm::vec3(0.0f);
+    glm::vec3 scale = glm::vec3(1.0f);
+    glm::vec3 color;    // Tint (R, G, B)
+    glm::vec3 normal;   // Direction for lighting calculations (X, Y, Z)
+
+    // Explicitly public constructor
+    Vertex(glm::vec3 p, glm::vec3 c, glm::vec3 n)
+        : position(p), color(c), normal(n) {
+    }
 };
 
 struct Texture {
     unsigned int id;
     std::string type;
-    std::string path;
 };
 
+/**
+ * The Mesh class handles the abstraction of GPU memory.
+ * It supports three modes:
+ * 1. Simple: Raw array of floats (Position only)
+ * 2. Standard: Interleaved Vertex struct (Position + Color + Normal)
+ * 3. Indexed: Standard + Element Buffer Object for optimized geometry
+ */
 class Mesh {
-public:
-    unsigned int Vao, Vbo, Ebo;
+private:
+    unsigned int m_VAO; // OpenGL handle for Vertex Array Object (stores state of vertex attributes and buffers) 
+    unsigned int m_VBO; // OpenGL handle for Vertex Buffer Object (stores vertex data in GPU memory)
 
+    unsigned int m_EBO; // Element Buffer Object is an OpenGL buffer that stores indices to reference vertices in a VBO
+    // allowing for efficient reuse of vertex data and optimized rendering of complex geometry.
+
+    // Configures how the GPU reads our interleaved Vertex struct
+    void SetupAttributes() {
+        // The "stride" is the byte-size of one full Vertex struct (36 bytes).
+        // It tells OpenGL: "To get to the next vertex, skip 36 bytes."
+        GLsizei stride = sizeof(Vertex);
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////
+        // NOTE: If we had more vertex attributes (e.g., color, normal), we would set them up here as well.
+        // Define the Memory Layout Link (Vertex Attributes)    
+        // Tells the GPU: "Hey, take data location 0, look at 3 floats at a time, 
+        // and the gap between each point is 3 times the size of a float."
+        // Define attribute pointers (Layout: 0, Size: 3 floats, Type: float)
+        // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        // glEnableVertexAttribArray(0);
+        /////////////////////////////////////////////////////////////////////////////////////////////////
+
+        // Location 0: Position
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (void*)0);
+
+        // Location 1: Color
+        // offsetof(Vertex, color) tells OpenGL exactly how many bytes into the struct the color starts
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, color));
+
+        // Location 2: Normal
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, normal));
+    }
+
+public:
     // mesh data
     std::vector<Vertex>       vertices;
     std::vector<unsigned int> indices;
     std::vector<Texture>      textures;
 
-    Mesh(const std::vector<Vertex>& vertices,
-        const std::vector<unsigned int>& indices,
-        const std::vector<Texture>& textures)
-    {
-        this->vertices = vertices;
-        this->indices = indices;
-        this->textures = textures;
 
-        // now that we have all the required data, set the vertex buffers and its attribute pointers.
-        setupMesh();
-    }
+    // --- CONSTRUCTORS ---
+    // Simple Constructor: line, triangle, or point cloud (not recommended for complex meshes)
+    // primitive constructor for quick testing, not recommended for complex meshes
+    Mesh(float* vertices, int size) : m_EBO(size / 3) {
+        glGenVertexArrays(1, &m_VAO);
+        glGenBuffers(1, &m_VBO);
 
-    // initializes all the buffer objects/arrays
-    void setupMesh()
-    {
-        // Safety check: If the mesh is empty, stop here to prevent crash
-        if (vertices.empty()) return;
+        glBindVertexArray(m_VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+        glBufferData(GL_ARRAY_BUFFER, size * sizeof(float), vertices, GL_STATIC_DRAW);
 
-        // create buffers/arrays       
-        glGenBuffers(1, &Vbo);
-        glGenBuffers(1, &Ebo);
-        glGenVertexArrays(1, &Vao);
+        // Simple position setup
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
-        // DEBUG: Check if OpenGL actually gave us valid IDs
-        if (Vbo == 0 || Ebo == 0 || Vao == 0) {            
-            Logger::Log("Your OpenGL context might be invalid.");
-            return;
-        }
-
-        glBindVertexArray(Vao);
-        // load data into vertex buffers
-        glBindBuffer(GL_ARRAY_BUFFER, Vbo);
-        // A great thing about structs is that their memory layout is sequential for all its items.
-        // The effect is that we can simply pass a pointer to the struct and it translates perfectly to a glm::vec3/2 array which
-        // again translates to 3/2 floats which translates to a byte array.
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0], GL_STATIC_DRAW);  
-
-        if (!indices.empty()) {
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Ebo);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), &indices[0], GL_STATIC_DRAW);
-        }
-
-        // set the vertex attribute pointers
-        // vertex Positions
-        glEnableVertexAttribArray(0);	
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
-        // vertex normals
-        glEnableVertexAttribArray(1);	
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Normal));
-        // vertex texture coords
-        glEnableVertexAttribArray(2);	
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, TexCoords));
-        // vertex tangent
-        glEnableVertexAttribArray(3);
-        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Tangent));
-        // vertex bitangent
-        glEnableVertexAttribArray(4);
-        glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, Bitangent));
-		// ids
-		glEnableVertexAttribArray(5);
-		glVertexAttribIPointer(5, 4, GL_INT, sizeof(Vertex), (void*)offsetof(Vertex, m_BoneIDs));
-
-		// weights
-		glEnableVertexAttribArray(6);
-		glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, m_Weights));
         glBindVertexArray(0);
     }
-    
-    ~Mesh() {
-        glDeleteVertexArrays(1, &Vao);
-        glDeleteBuffers(1, &Vbo);
-        glDeleteBuffers(1, &Ebo);
+
+    // Default: Mesh created with a vector of Vertex structs (Position + Color + Normal)
+    Mesh(const std::vector<Vertex>& vertices) : m_VBO(vertices.size()) {
+        glGenVertexArrays(1, &m_VAO);
+        glGenBuffers(1, &m_VBO);
+
+        // Bind the Vertex Array Object (VAO) to store the state of our vertex attributes and buffers
+        glBindVertexArray(m_VAO);
+        // Bind the Vertex Buffer Object (VBO) to upload our vertex data to the GPU
+        glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+
+        // Upload the vertex data to the GPU's memory.    
+        // Allocate and upload index data to the GPU's memory.
+        // 1. GL_ELEMENT_ARRAY_BUFFER: Specifies we are targeting the Element Buffer Object (EBO).
+        // 2. Size: Total size of the buffer in bytes (number of indices * size of a single unsigned int).
+        // 3. indices.data(): Pointer to the source data in your CPU's RAM (the std::vector).
+        // 4. GL_STATIC_DRAW: Performance hint: the data won't change, so store it in fast VRAM.
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
+
+        SetupAttributes();
+        glBindVertexArray(0);
     }
+
+    // 3. Indexed: Combined Data + EBO (Most efficient for complex shapes)
+    Mesh(const std::vector<Vertex>& vertices, const std::vector<unsigned int>& indices)
+    {
+        this->indices = indices;
+
+        if (indices.empty()) {
+            std::cout << "CRITICAL: Creating a mesh with 0 indices!" << std::endl;
+        }
+
+        glGenVertexArrays(1, &m_VAO);
+        glGenBuffers(1, &m_VBO);
+        glGenBuffers(1, &m_EBO);
+
+        glBindVertexArray(m_VAO);        
+
+        // Upload Vertex Data
+        glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
+
+        // Upload Index Data (The recipe for connecting vertices)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+
+        SetupAttributes();
+        glBindVertexArray(0);
+
+    }
+
+    // Cleanup GPU memory when Mesh object goes out of scope
+    ~Mesh() {
+        glDeleteVertexArrays(1, &m_VAO);
+        glDeleteBuffers(1, &m_VBO);
+        glDeleteBuffers(1, &m_EBO);
+        std::cout << "Mesh resources freed from GPU." << std::endl;
+    }
+
+    unsigned int GetVIO() const {
+        return m_VAO;
+    }
+
+    void draw() {
+        glBindVertexArray(m_VAO);
+        glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+    }
+
+
 };
+#endif
