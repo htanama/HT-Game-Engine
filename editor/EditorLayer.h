@@ -3,11 +3,22 @@
 #include <memory>
 #include "core/Engine.h"
 #include "core/Camera.h"
+#include "core/ECS.h"
+#include "utility/CubeBuilder.h"
+#include "utility/MeshManager.h"
+#include "core/Systems.h"
+#include "utility/SceneSerializer.h"
+
 #include "../imgui/imgui.h"
 #include "../imgui/backends/imgui_impl_sdl3.h"
 #include "../imgui/backends/imgui_impl_opengl3.h"
 #include <SDL3/SDL.h>
 
+extern Registry registry;
+static Entity selectedEntity;
+bool requestCameraReset;
+Renderer renderer;
+EditorState gameState;
 
 class EditorLayer {
 private: 
@@ -71,7 +82,7 @@ public:
         SDL_GetWindowSizeInPixels(window, &m_width, &m_height);
         glViewport(0, 0, m_width, m_height);
         m_gridCount = SetupGrid(m_gridVAO, m_gridVBO, m_width);        
-
+      
     }
 
     void Begin() {
@@ -80,22 +91,70 @@ public:
         ImGui::NewFrame();
     }
 
-    void Draw() 
+    void Draw(Camera &editorCamera) 
     {
         // Dynamically get the size of the current UI window, not the whole application
         ImVec2 viewportSize = ImGui::GetContentRegionAvail();
 
+        static bool showSavePopup = false;
+
         // 1. GLOBAL MENU BAR (Must be outside the DockSpace Host)
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("File")) {
-                if (ImGui::MenuItem("New Scene"))    { /* Logic */ }
-                if (ImGui::MenuItem("Save Scene"))   { /* Logic */ }
-                if (ImGui::MenuItem("Load Scene"))   { /* Logic */ }
-                if (ImGui::MenuItem("Exit"))        { Engine::SetIsRunning(false); }
+                if (ImGui::MenuItem("New Scene", "Ctrl+N")) { Logger::Log("New Scene"); }
+                
+                if (ImGui::MenuItem("Save Scene", "Ctrl+S"))   {
+                    SceneSerializer::SaveScene(registry, "world.scene");
+                    Logger::Log("Scene saved to world.scene");
+                    showSavePopup = true;
+                }
+                
+                if (ImGui::MenuItem("Load Scene", "Ctrl+L")) {
+                    SceneSerializer::LoadScene(registry, "world.scene");
+                }
+                
+                if (ImGui::MenuItem("Exit")) { Engine::SetIsRunning(false); }
+
                 ImGui::EndMenu();
             }
-            ImGui::EndMainMenuBar();
-        }
+
+            float buttonWidthOrigin = 100.0f;
+            float buttonWidthPlay = 120.0f;
+            float spacing = 800.0f; 
+            float totalGroupWidth = buttonWidthOrigin + spacing + buttonWidthPlay;
+
+            ImGui::SameLine(0, spacing); // Keep them on the same line
+
+            if (ImGui::Button(" 2D ", ImVec2(buttonWidthOrigin, 0))) {
+                // TODO: Change to 2D Scene
+            }
+
+            if (ImGui::Button(" 3D ", ImVec2(buttonWidthOrigin, 0))) {
+                // TODO: Change to 3D Scene
+            }
+
+            // State-based button
+            if (gameState == EditorState::Editor) {
+                if (ImGui::Button(" Play ", ImVec2(buttonWidthPlay, 0))) {
+                    gameState = EditorState::Playing;
+                    Logger::Log("State changed to Playing");
+                }
+            }
+            else {
+                // Optional: Make "Stop" red to signify an active game
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 1.0f));
+                if (ImGui::Button(" Stop ", ImVec2(buttonWidthPlay, 0))) {
+                    gameState = EditorState::Editor;
+                    Logger::Log("State changed to Editor Mode");
+                }
+                ImGui::PopStyleColor();
+            }
+
+            ImGui::EndMainMenuBar();            
+
+
+        }            
+
 
         // Create a dockspace in main viewport, where central node is transparent.
         ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
@@ -112,21 +171,196 @@ public:
         ImGui::Begin("Scene"); // ImGuiCond_FirstUseEver
             ImGui::BeginChild("HierarchyChild", ImVec2(0, ImGui::GetContentRegionAvail().y * 0.5f), true);
             ImGui::Text("Hierarchy");
-            ImGui::EndChild();
+            
+            if (ImGui::Button("Add New Entity", ImVec2(-1, 0))) {
+                Entity newEnt = registry.CreateEntity();
+                
+                // Create and get the mesh from your meshLibrary
+                std::shared_ptr<Mesh> meshInstance = MeshManager::CreateNewCubeMesh();
+
+                // Error handling to catch if it is failed to create cubeMesh
+                if (!meshInstance) {
+                    Logger::Log("Failed to create new cube mesh. ");
+                }
+
+                // Register Component - Pass the shared_ptr from the library
+                registry.renderables[newEnt].mesh = meshInstance;
+                registry.hasRenderable[newEnt] = true;
+
+                registry.AddTransform(newEnt, { glm::vec3(0.0f), glm::vec3(1.0f) });
+                registry.hasTransform[newEnt] = true;
+
+                registry.AddColor(newEnt, { glm::vec3(1.0f, 1.0f, 1.0f) });
+                registry.colors[newEnt].color = glm::vec3(1.0f, 1.0f, 1.0f); // Default white color
+                registry.hasColor[newEnt] = true;
+
+                registry.names[newEnt] = { "New Cube" };
+                registry.hasName[newEnt] = true;
+
+
+                Logger::Log("Added New Entity and total number of entities: " + std::to_string(registry.GetEntityCount()));
+            }             
+                      
+            // to check the correct entity to rename
+            static Entity renamingEntity = (Entity)-1;
+            static char nameBuffer[64] = "";
+
+            // to check the correct entity to delete
+            static Entity entityToDelete = (Entity)-1;
+
+            for (size_t index = 0; index < registry.hasTransform.size(); ++index) {
+                if (!registry.hasTransform[index]) continue;
+
+                ImGui::PushID((int)index);
+
+                // Retrieve name
+                std::string entityName = registry.hasName[index] ? registry.names[index].name : "Object " + std::to_string(index);
+
+                // Logic: If we are currently renaming THIS specific entity
+                if (renamingEntity == (Entity)index) {
+                    ImGui::SetKeyboardFocusHere();
+                    if (ImGui::InputText("##rename", nameBuffer, sizeof(nameBuffer),
+                        ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
+
+                        registry.names[index].name = std::string(nameBuffer);
+                        renamingEntity = (Entity)-1; // Exit rename mode
+                    }
+                    if (ImGui::IsItemDeactivatedAfterEdit()) renamingEntity = (Entity)-1;
+                }
+                else {
+                    // Normal display mode
+                    if (ImGui::Selectable(entityName.c_str(), selectedEntity == (Entity)index)) {
+                        selectedEntity = (Entity)index;
+                    }
+
+                    // Trigger rename on double-click OR right-click menu
+                    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
+                        renamingEntity = (Entity)index;
+                        strncpy(nameBuffer, entityName.c_str(), sizeof(nameBuffer));
+                    }
+
+                    if (ImGui::BeginPopupContextItem()) {
+                        if (ImGui::MenuItem("Rename")) {
+                            renamingEntity = (Entity)index;
+                            strncpy(nameBuffer, entityName.c_str(), sizeof(nameBuffer));
+                        }
+                        if (ImGui::MenuItem("Delete")) {
+                            entityToDelete = (Entity)index; // Set delete target
+                        }
+                        ImGui::EndPopup();
+                    }
+                }
+
+                ImGui::PopID();
+            }
+
+            if (entityToDelete != (Entity)-1) {
+                RequestDeleteEntity(registry, entityToDelete);
+                MeshManager::CleanupUnusedMeshes();
+
+                // Reset selection if we deleted the currently selected one
+                if (selectedEntity == entityToDelete) {
+                    selectedEntity = (Entity)-1;
+                }
+                registry.SubtractEntityCount();
+                Logger::Log("Entity ID " + std::to_string(entityToDelete) + " components cleared.");
+                Logger::Log("Total entities: " + std::to_string(registry.GetEntityCount()));
+                entityToDelete = (Entity)-1; // Reset target
+            }
+
+            ImGui::EndChild(); // end of Scene Hierarchy     
+
             ImGui::BeginChild("FileChild", ImVec2(0, 0), true);
             ImGui::Text("File System");
             ImGui::EndChild();
         ImGui::End();
 
+        
         ImGui::Begin("Inspector");
+            if (ImGui::Button("Origin")) {
+                requestCameraReset = true;
+            }
+            if (requestCameraReset) {
+                editorCamera.position = glm::vec3(0.0f, 5.0f, 15.0f);
+
+                glm::vec3 target = glm::vec3(0.0f, 0.0f, 0.0f);
+                glm::vec3 dirToOrigin = glm::normalize(target - editorCamera.position);
+                // Force the internal vectors to recalculate immediately
+                editorCamera.SetDirection(dirToOrigin);
+
+                Logger::Log("Reset Camera to Origin");
+                requestCameraReset = false; // Turn the flag off immediately
+            }
+
             ImGui::Text("Transform");
-            static float pos[3], rot[3], scale[3] = {1.0f, 1.0f, 1.0f};
-            ImGui::DragFloat3("Position", pos);
-            ImGui::DragFloat3("Rotation", rot);
-            ImGui::DragFloat3("Scale", scale);
+            if (selectedEntity != -1 && selectedEntity < registry.transforms.size() && registry.hasTransform[selectedEntity]) {
+                auto& t = registry.transforms[selectedEntity];
+                // --- POSITION ---
+                ImGui::Text("Position");
+                ImGui::Columns(3, nullptr, false);
+                ImGui::Text("X"); ImGui::NextColumn();
+                ImGui::Text("Y"); ImGui::NextColumn();
+                ImGui::Text("Z"); ImGui::NextColumn();
+                ImGui::Columns(1); // Close columns so the sliders aren't forced into them
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::DragFloat3("##Position", &t.position.x, 0.1f);
+
+                // --- ROTATION ---
+                ImGui::Text("Rotation");
+                ImGui::Columns(3, nullptr, false);
+                ImGui::Text("X"); ImGui::NextColumn();
+                ImGui::Text("Y"); ImGui::NextColumn();
+                ImGui::Text("Z"); ImGui::NextColumn();
+                ImGui::Columns(1);
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::DragFloat3("##Rotation", &t.rotation.x, 1.0f);
+
+                // --- SCALE ---
+                ImGui::Text("Scale");
+                ImGui::Columns(3, nullptr, false);
+                ImGui::Text("X"); ImGui::NextColumn();
+                ImGui::Text("Y"); ImGui::NextColumn();
+                ImGui::Text("Z"); ImGui::NextColumn();
+                ImGui::Columns(1);
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                ImGui::DragFloat3("##Scale", &t.scale.x, 0.05f);
+
+                static bool checked = false;
+                ImGui::Checkbox("Wireframe", &checked);
+                // SAFE GUARD: Check if the index is valid BEFORE doing anything
+                if (selectedEntity >= 0 && selectedEntity < (int)registry.renderables.size()) {
+                    // if checkbox is on, change the mesh to wire frame globally not individual model.
+                    // find entity that can be render on the screen to see if it is wireframe or fill polygon
+                    for (auto& object : registry.renderables) {
+                        // Find the object
+                        if (&object == &registry.renderables[selectedEntity]) {
+                            // Assign the value (this is the "toggle")
+                            // If checked is true, object becomes true. If checked is false, it becomes false.
+                            object.isWireframe = checked;
+                            // Stop searching
+                            break;
+                        }
+
+                    }
+                }
+
+                if (selectedEntity != -1 && selectedEntity < registry.colors.size() && registry.hasColor[selectedEntity]) {
+                    auto& c = registry.colors[selectedEntity];
+
+                    // ColorEdit3 takes a float array (a pointer to the first of 3 floats)
+                    if (ImGui::ColorEdit3("Object Color", &c.color.x)) {
+                        // This block runs automatically whenever the user changes the color.
+                        // If your renderer is already using registry.colors[e].color
+                        // in its main loop, this will work instantly!
+                    }
+                }
+            }          
         ImGui::End();
 
         ImGui::Begin("Output Console");
+            ImGui::Columns(2, "ConsoleColumns", true);
+            ImGui::SetColumnWidth(0, ImGui::GetWindowWidth() * 0.85f);
+
             const std::vector<std::string>& messages = Logger::GetLogMessages();
             // Sent all logMessages here
             for (std::vector<std::string>::const_iterator it = messages.begin(); it != messages.end(); ++it) {
@@ -135,10 +369,27 @@ public:
             // with Ranged-Based for loop
             // for (const auto& msg : Logger::GetLogMessages()){
             //     ImGui::TextUnformatted(msg.c_str());
-            // }
-        ImGui::End();
+            // }        
+            
+
+            // Move to the right column
+            ImGui::NextColumn();
+            if (ImGui::CollapsingHeader("Camera Info")) {
+                // Displaying the vector components
+                ImGui::Text("Position X: %.2f", editorCamera.position.x);
+                ImGui::Text("Position Y: %.2f", editorCamera.position.y);
+                ImGui::Text("Position Z: %.2f", editorCamera.position.z);
+
+                ImGui::Text("Pitch: %.2f", editorCamera.pitch);
+                ImGui::Text("Yaw: %.2f", editorCamera.yaw);
+            }
+            if (ImGui::Button("Origin")) {
+                requestCameraReset = true;
+            }
+        ImGui::Columns(1);
+        ImGui::End();        
         
-        // TEmp
+                
         glDrawArrays(GL_LINES, 0, m_gridCount);
     }
 

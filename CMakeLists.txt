@@ -14,10 +14,12 @@ set(GLAD_DIR "${CMAKE_SOURCE_DIR}/glad")
 
 # Project Files
 set(PROJECT_SOURCES main.cpp)
-file(GLOB PROJECT_HEADERS
-    core/*.h
-    editor/*.h
+set(PROJECT_HEADERS
+    core/Camera.h core/Engine.h core/Log.h core/Mesh.h core/Renderer.h core/Shader.h
+    core/ECS.h core/Components.h core/Systems.h
+    editor/EditorLayer.h    
 )
+set(PROJECT_UTILITY utility/CubeBuilder.h utility/MeshManager.h utility/json.hpp utility/SceneSerializer.h)
 
 # Import Precompiled SDL3
 add_library(SDL3_prebuilt SHARED IMPORTED)
@@ -47,7 +49,13 @@ target_link_libraries(imgui_lib PUBLIC SDL3_prebuilt)
 target_include_directories(imgui_lib PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
 
 # Define Executable
-add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS})
+add_executable(${PROJECT_NAME} ${PROJECT_SOURCES} ${PROJECT_HEADERS} ${PROJECT_UTILITY})
+
+# This tells CMake to group files in the IDE based on their path
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX "Source" FILES ${PROJECT_SOURCES} ${PROJECT_HEADERS} ${PROJECT_UTILITY})
+
+# OR, to be very specific about your Utility folder:
+source_group("Utility" FILES ${PROJECT_UTILITY})
 
 # Force Visual Studio to set your project as the default startup project
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
