@@ -12,6 +12,11 @@ enum Camera_Movement {
     RIGHT
 };
 
+struct Ray {
+    glm::vec3 origin;
+    glm::vec3 direction;
+};
+
 class Camera {
 public:      
     float mouseSensitivity = 0.1f;
@@ -26,12 +31,12 @@ public:
     glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
     // Creates the View Matrix: Defines where the camera is looking
-    glm::mat4 GetViewMatrix() {
+    glm::mat4 GetViewMatrix() const {
         return glm::lookAt(position, position + front, glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
     // Creates the Projection Matrix: Defines the FOV and perspective
-    glm::mat4 GetProjectionMatrix(float aspect){
+    glm::mat4 GetProjectionMatrix(float aspect) const {
         return glm::perspective(glm::radians(45.0f), aspect, 0.1f, 1000.0f);
     }
 
@@ -71,7 +76,7 @@ public:
         up    = glm::normalize(glm::cross(right, front));
     }
 
-    void Camera::SetDirection(glm::vec3 direction) {
+    void SetDirection(glm::vec3 direction) {
         
         // Normalize the direction to ensure it's a unit vector
         direction = glm::normalize(direction);
@@ -110,4 +115,29 @@ public:
         forward.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
         return glm::normalize(forward);
     }
+
+
+	Ray ScreenToWorldRay(float mouseX, float mouseY, int screenWidth, int screenHeight) const {
+		// Calculate aspect ratio
+		float aspect = (float)screenWidth / (float)screenHeight;
+
+		// 1. Convert mouse to Normalized Device Coordinates (-1 to 1)
+		float x = (2.0f * mouseX) / screenWidth - 1.0f;
+		float y = 1.0f - (2.0f * mouseY) / screenHeight; 
+
+		// 2. Define ray in clip space
+		glm::vec4 ray_clip(x, y, -1.0f, 1.0f); 
+		
+		// PASS THE ASPECT RATIO HERE
+		glm::vec4 ray_eye = glm::inverse(GetProjectionMatrix(aspect)) * ray_clip;
+		ray_eye = glm::vec4(ray_eye.x, ray_eye.y, -1.0f, 0.0f);
+
+		// Call your GetViewMatrix() (ensure it's marked const as well)
+		glm::vec3 ray_world = glm::vec3(glm::inverse(GetViewMatrix()) * ray_eye);
+		ray_world = glm::normalize(ray_world);
+
+		return { position, ray_world };
+	}
+
+
 };

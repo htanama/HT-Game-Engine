@@ -2,6 +2,52 @@
 #include "ECS.h"
 #include "Shader.h"
 
+// A simple AABB structure for object
+struct AABB{
+	glm::vec3 min;
+	glm::vec3 max;
+};
+
+// Return true if the ray hits the AABB
+bool RayIntersectsAABB(const Ray& ray, glm::vec3 pos, glm::vec3 scale, float& distance) {
+    glm::vec3 min = pos - (scale * 0.5f);
+    glm::vec3 max = pos + (scale * 0.5f);
+    
+    // Slab intersection algorithm
+    glm::vec3 invDir = 1.0f / ray.direction;
+    glm::vec3 t0 = (min - ray.origin) * invDir;
+    glm::vec3 t1 = (max - ray.origin) * invDir;
+    
+    glm::vec3 tmin = glm::min(t0, t1);
+    glm::vec3 tmax = glm::max(t0, t1);
+    
+    float t_near = glm::max(glm::max(tmin.x, tmin.y), tmin.z);
+    float t_far = glm::min(glm::min(tmax.x, tmax.y), tmax.z);
+    
+    if (t_far < 0 || t_near > t_far) return false;
+    distance = t_near;
+    return true;
+}
+
+Entity PickEntity(const Ray& ray, Registry& reg) {
+    Entity closestEntity = -1;
+    float closestDistance = 9999.0f;
+
+    for (size_t e = 0; e < reg.hasTransform.size(); ++e) {
+        if (!reg.hasTransform[e] || !reg.hasRenderable[e]) continue;
+
+        float distance;
+        if (RayIntersectsAABB(ray, reg.transforms[e].position, reg.transforms[e].scale, distance)) {
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestEntity = (Entity)e;
+            }
+        }
+    }
+    return closestEntity;
+}
+
+
 // Search for an entity by name
 Entity FindEntityByName(Registry& reg, const std::string& name) {
     for (Entity i = 0; i < reg.names.size(); ++i) {
