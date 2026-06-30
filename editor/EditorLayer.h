@@ -288,9 +288,23 @@ public:
                 // Force the internal vectors to recalculate immediately
                 editorCamera.SetDirection(dirToOrigin);
 
-                Logger::Log("Reset Camera to Origin");
+                Logger::Log("Reset Camera to origin");  
                 requestCameraReset = false; // Turn the flag off immediately
             }
+				
+			if (selectedEntity != -1) {
+				if(selectedEntity < registry.names.size()){
+					if (registry.hasName[selectedEntity]) {
+						// Display the name as read-only text
+						ImGui::Text("Entity Name:");
+						ImGui::SameLine();
+						ImGui::TextColored(ImVec4(1, 1, 0, 1), "%s", registry.names[selectedEntity].name.c_str());
+					}
+				}
+
+				// You could show the ID too, which is also read-only
+				ImGui::Text("Entity ID: %d", (int)selectedEntity);
+			} 
 
             ImGui::Text("Transform");
             if (selectedEntity != -1 && selectedEntity < registry.transforms.size() && registry.hasTransform[selectedEntity]) {

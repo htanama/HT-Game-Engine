@@ -15,6 +15,8 @@ extern Renderer renderer;
 Registry registry;
 
 extern EditorState gameState;
+bool isDragging = false;
+
 
 int main(int argc, char* argv[]) {        
     
@@ -33,7 +35,7 @@ int main(int argc, char* argv[]) {
     Shader myShader("shaders/opengl_vertex.glsl", "shaders/opengl_fragment.glsl");
     Shader gridShader("shaders/grid_vertex.glsl", "shaders/grid_fragment.glsl");
 
-    EditorLayer editor;
+	EditorLayer editor;
     editor.Init(window, context);
     Logger::Log("Rendering Initialization Complete");
     
@@ -80,8 +82,53 @@ int main(int argc, char* argv[]) {
                 // Update Renderer FBO
                 renderer.WindowResize(renderer.currentWindowWidth, renderer.currentWindowHeight);
             }
-        }     
-               
+		
+			// Perform raycasting to select object on the scene
+			if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+				if(event.button.button == SDL_BUTTON_LEFT) {
+					ImGuiIO& io = ImGui::GetIO();
+					if (!io.WantCaptureMouse) { // perform raycast if ImGui does not need the mouse
+						float mx = (float)event.button.x;
+						float my = (float)event.button.y;
+					
+						Ray ray = editorCamera.ScreenToWorldRay(mx, my, renderer.currentWindowWidth, renderer.currentWindowHeight);
+						selectedEntity = PickEntity(ray, registry);
+					
+						if (selectedEntity != -1) {
+							isDragging = true; // grab object
+							std::cout << "You clicked entity: " << selectedEntity << std::endl;
+						}
+					}
+				}
+			}
+
+			if (event.type == SDL_EVENT_MOUSE_MOTION) {
+				if (isDragging && selectedEntity != -1) {
+					// Move the entity based on mouse movement
+					// We project the mouse position onto a plane at the object's current height (y)
+					float height = registry.transforms[selectedEntity].position.y;
+					
+					Ray ray = editorCamera.ScreenToWorldRay((float)event.motion.x, (float)event.motion.y, 
+															renderer.currentWindowWidth, renderer.currentWindowHeight);
+					
+					// This math finds where the ray hits the horizontal plane of the object
+					float t = (height - ray.origin.y) / ray.direction.y;
+					glm::vec3 newPos = ray.origin + (ray.direction * t);
+					
+					registry.transforms[selectedEntity].position = newPos;
+				}
+			}
+
+			if (event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+				if(event.button.button == SDL_BUTTON_LEFT){
+					isDragging = false; // Release the object
+				}
+			}
+
+
+		}
+
+			              
         // WASD Movement (Polling for continuous input)
         const bool* state = SDL_GetKeyboardState(NULL);
         if (state[SDL_SCANCODE_W]) editorCamera.ProcessKeyboard(FORWARD, deltaTime);
