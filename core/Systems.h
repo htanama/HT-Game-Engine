@@ -68,6 +68,8 @@ void RequestDeleteEntity(Registry& registry, Entity entityID) {
         registry.hasColor[entityID] = false;
         registry.hasRotation[entityID] = false;
         registry.hasLifetime[entityID] = false;
+        registry.hasTexture[entityID] = false; 
+
     }
 
     registry.renderables[entityID].mesh = nullptr;    
@@ -160,6 +162,37 @@ void RenderSystem(Registry& reg, Shader& shader) {
 
         // Recalculate the model with the updated transformation data
         shader.setMat4("model", model);
+        
+    //    if (reg.hasTexture[e] && reg.textures[e].useTexture) {
+    //        shader.setBool("useTexture", true);
+    //        glActiveTexture(GL_TEXTURE0);
+    //        glBindTexture(GL_TEXTURE_2D, reg.textures[e].textureID);
+    //        
+    //        shader.setInt("ourTexture", 0); // Must match the uniform name in your fragment shader
+    //    } else {
+	//		// Crucial: Tell the shader to ignore the texture and use the solid color
+	//		shader.setBool("useTexture", false);
+	//	}
+      
+		// Texture & Color State Logic
+        bool hasTex = reg.hasTexture[e] && reg.textures[e].useTexture;
+        shader.setBool("useTexture", hasTex);
+        shader.setBool("isVertexColor", false); // Explicitly disable vertex color
+
+        if (hasTex) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, reg.textures[e].textureID);
+            shader.setInt("ourTexture", 0);
+        }
+  
+        // Handle Color logic
+		if (reg.hasColor[e]) {
+			shader.setVec3("objectColor", reg.colors[e].color);
+		} else {
+			// If no color component exists, force white so it isn't black
+			shader.setVec3("objectColor", glm::vec3(1.0f)); 
+		}
+
 
         if (reg.hasColor[e]) {
             shader.setVec3("objectColor", reg.colors[e].color);

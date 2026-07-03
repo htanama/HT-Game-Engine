@@ -10,6 +10,11 @@ struct Transform{
     glm::vec3 scale{1.0f};
 };
 
+struct TextureComponent {
+    unsigned int textureID = 0; // OpenGL texture handle
+    bool useTexture = false;    // Toggle for the shader
+};
+
 struct CameraComponent {
     Camera camera;
     bool isPlayerCamera = false; // True if this camera should be used for player view
@@ -18,7 +23,6 @@ struct CameraComponent {
 // The Renderable component tells the RenderSystem which mesh to draw for this entity, 
 // and what color to use if not using vertex colors.
 struct Renderable {
-    // Mesh* mesh = nullptr; // Pointer to the mesh to render
     std::shared_ptr<Mesh> mesh;
     std::string meshPath; // Keep track of the source file
     glm::vec3 color = glm::vec3(1.0f); // Default color (white)

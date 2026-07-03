@@ -1,5 +1,5 @@
 #pragma once
-#include "ECS.h" // Your Registry definitions
+#include "core/ECS.h" // Your Registry definitions
 #include <fstream>
 #include "json.hpp"
 

@@ -9,6 +9,9 @@
 #include "core/ECS.h"
 #include "core/Systems.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "utility/stb_image.h"
+
 bool Engine::isRunning = true;
 extern Entity selectedEntity;
 extern Renderer renderer;
@@ -21,7 +24,6 @@ bool isDragging = false;
 int main(int argc, char* argv[]) {        
     
     SDL_Init(SDL_INIT_VIDEO);   
-    
     
     SDL_Window* window = SDL_CreateWindow("HT Game Engine", 
         renderer.GetWindowWidth(), 
@@ -46,7 +48,7 @@ int main(int argc, char* argv[]) {
 
     SDL_Event event;
     Uint64 lastTime = SDL_GetTicks();          
-
+	
     while (Engine::isRunning) {
         // Calculate deltaTime
         Uint64 currentTime = SDL_GetTicks();
@@ -95,7 +97,7 @@ int main(int argc, char* argv[]) {
 						selectedEntity = PickEntity(ray, registry);
 					
 						if (selectedEntity != -1) {
-							isDragging = true; // grab object
+							isDragging = true; // grab object
 							std::cout << "You clicked entity: " << selectedEntity << std::endl;
 						}
 					}
@@ -127,7 +129,6 @@ int main(int argc, char* argv[]) {
 
 
 		}
-
 			              
         // WASD Movement (Polling for continuous input)
         const bool* state = SDL_GetKeyboardState(NULL);

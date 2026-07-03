@@ -4,7 +4,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 
-#include "Mesh.h"
+#include "core/Mesh.h"
 
 // 36 vertices (6 faces * 2 triangles/face * 3 vertices/triangle)
 float cubeVertices[] = {
@@ -84,6 +84,31 @@ inline void GetPlayerCubeData(std::vector<Vertex>& vertices, std::vector<unsigne
         4, 5, 1, 1, 0, 4,
         3, 2, 6, 6, 7, 3
     };
+}
+
+
+inline void GetCubeDataWithTexture(std::vector<Vertex>& vertices, std::vector<unsigned int>& indices) {
+    vertices.clear();
+    indices.clear();
+
+    std::function<void(glm::vec3, glm::vec3, glm::vec3, glm::vec3, glm::vec3)> AddFace =
+        [&](glm::vec3 v1, glm::vec3 v2, glm::vec3 v3, glm::vec3 v4, glm::vec3 normal) {
+            unsigned int start = (unsigned int)vertices.size();
+            vertices.emplace_back(v1, glm::vec3(1,1,1), normal, glm::vec2(0.0f, 0.0f));
+            vertices.emplace_back(v2, glm::vec3(1,1,1), normal, glm::vec2(1.0f, 0.0f));
+            vertices.emplace_back(v3, glm::vec3(1,1,1), normal, glm::vec2(1.0f, 1.0f));
+            vertices.emplace_back(v4, glm::vec3(1,1,1), normal, glm::vec2(0.0f, 1.0f));
+            indices.insert(indices.end(), {start, start+1, start+2, start+2, start+3, start});
+        };
+
+    float w = 0.5f, h = 0.5f, d = 0.5f;
+
+    AddFace({-w,-h, d}, { w,-h, d}, { w, h, d}, {-w, h, d}, {0, 0, 1});   // Front
+    AddFace({ w,-h,-d}, {-w,-h,-d}, {-w, h,-d}, { w, h,-d}, {0, 0,-1});   // Back
+    AddFace({-w, h,-d}, {-w, h, d}, { w, h, d}, { w, h,-d}, {0, 1, 0});   // Top
+    AddFace({-w,-h, d}, {-w,-h,-d}, { w,-h,-d}, { w,-h, d}, {0,-1, 0});   // Bottom
+    AddFace({-w,-h,-d}, {-w,-h, d}, {-w, h, d}, {-w, h,-d}, {-1,0, 0});   // Left
+    AddFace({ w,-h, d}, { w,-h,-d}, { w, h,-d}, { w, h, d}, { 1,0, 0});   // Right
 }
 
 

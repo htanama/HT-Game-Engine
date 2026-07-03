@@ -308,7 +308,7 @@ public:
 
             ImGui::Text("Transform");
             if (selectedEntity != -1 && selectedEntity < registry.transforms.size() && registry.hasTransform[selectedEntity]) {
-                auto& t = registry.transforms[selectedEntity];
+                Transform& t = registry.transforms[selectedEntity];
                 // --- POSITION ---
                 ImGui::Text("Position");
                 ImGui::Columns(3, nullptr, false);
@@ -345,7 +345,7 @@ public:
                 if (selectedEntity >= 0 && selectedEntity < (int)registry.renderables.size()) {
                     // if checkbox is on, change the mesh to wire frame globally not individual model.
                     // find entity that can be render on the screen to see if it is wireframe or fill polygon
-                    for (auto& object : registry.renderables) {
+                    for (Renderable& object : registry.renderables) {
                         // Find the object
                         if (&object == &registry.renderables[selectedEntity]) {
                             // Assign the value (this is the "toggle")
@@ -359,7 +359,7 @@ public:
                 }
 
                 if (selectedEntity != -1 && selectedEntity < registry.colors.size() && registry.hasColor[selectedEntity]) {
-                    auto& c = registry.colors[selectedEntity];
+                    ColorComponent& c = registry.colors[selectedEntity];
 
                     // ColorEdit3 takes a float array (a pointer to the first of 3 floats)
                     if (ImGui::ColorEdit3("Object Color", &c.color.x)) {
@@ -368,6 +368,48 @@ public:
                         // in its main loop, this will work instantly!
                     }
                 }
+                
+                ImGui::Separator();
+				ImGui::Text("Texture Settings");
+
+				// Create a buffer for the file path (static so it persists)
+				static char pathBuffer[128] = "assets/wood.png"; 
+
+				ImGui::InputText("Path", pathBuffer, sizeof(pathBuffer));
+				if (ImGui::Button("Browse...")) {
+					// TIP: Integrate 'tinyfiledialogs' here to open a real OS file picker.
+					Logger::Log("File dialog triggered: Browse for texture files.");
+				}
+				
+				ImGui::SameLine();
+				
+				if (ImGui::Button("Apply Texture")) {
+					TextureComponent tc;
+					//tc.textureID = MeshManager::LoadTexture(pathBuffer);
+					tc.textureID = MeshManager::LoadTextureToOpenGL(pathBuffer);
+					tc.useTexture = true;  
+ 					registry.AddTexture(selectedEntity, tc);					
+
+				}
+				
+				ImGui::SameLine();
+
+				// 3. Remove Texture Button
+				if (ImGui::Button("Remove")) {
+					if (selectedEntity != -1 && registry.hasTexture[selectedEntity]) {
+						// 1. Tell MeshManager to handle the GPU cleanup
+						// We pass the ID so it can decrement references or delete the texture object
+						MeshManager::RemoveTexture(registry.textures[selectedEntity].textureID);
+						
+						// 2. Clear the component data
+						registry.textures[selectedEntity].useTexture = false;
+						registry.hasTexture[selectedEntity] = false;
+						registry.textures[selectedEntity].textureID = 0; // Reset ID to 0
+						
+						Logger::Log("Texture removed from entity " + std::to_string(selectedEntity));
+					}
+				}
+				
             }          
         ImGui::End();
 

@@ -22,6 +22,9 @@ public:
     std::vector<LifetimeComponent> lifetimes;
     std::vector<CameraComponent> cameras; // New vector to hold camera components
     std::vector<NameComponent> names;
+    std::vector<TextureComponent> textures; // Storage for the component
+    std::vector<bool> hasTexture;           // Tracker for the component
+    
     
     // We use a simple way to track which entity has which componetes.  
     std::vector<bool> hasTransform;
@@ -45,6 +48,7 @@ public:
         rotations.push_back({}); // Add default RotationComponent
         lifetimes.push_back({}); // Add default LifetimeComponent
         names.push_back({defaultName});
+        textures.push_back({});
 
         hasTransform.push_back(false); // Initially, the entity has no components
         hasRenderable.push_back(false); // Initially, the entity has no components
@@ -53,6 +57,7 @@ public:
         hasRotation.push_back(false); // Initially, the entity has no components
         hasLifetime.push_back(false); // Initially, the entity has no components
         hasName.push_back(true);
+        hasTexture.push_back(false);
         
         ++entityCount;
         return id;
@@ -71,6 +76,7 @@ public:
                 rotations.erase(rotations.begin() + i);
                 lifetimes.erase(lifetimes.begin() + i);
                 cameras.erase(cameras.begin() + i);
+                textures.erase(textures.begin() + i);
                 
                 hasName.erase(hasName.begin() + i);
                 hasTransform.erase(hasTransform.begin() + i);
@@ -80,6 +86,7 @@ public:
                 hasRotation.erase(hasRotation.begin() + i);
                 hasLifetime.erase(hasLifetime.begin() + i);
                 hasCamera.erase(hasCamera.begin() + i);
+                hasTexture.erase(hasTexture.begin() + i);
                
             }
         }        
@@ -131,5 +138,12 @@ public:
             --entityCount;
         }
     }
+    
+    void AddTexture(Entity e, TextureComponent t) {
+		if (textures.size() <= e) textures.resize(e + 1);
+		if(t.textureID != 0) t.useTexture = true;
+		textures[e] = t;
+		hasTexture[e] = true;
+	}
     
 };
