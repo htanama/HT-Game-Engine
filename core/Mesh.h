@@ -15,14 +15,15 @@
 struct Vertex {
 
     glm::vec3 position = glm::vec3(0.0f); // Location (X, Y, Z)
-    glm::vec3 rotation = glm::vec3(0.0f);
-    glm::vec3 scale = glm::vec3(1.0f);
+    //glm::vec3 rotation = glm::vec3(0.0f);
+    //glm::vec3 scale = glm::vec3(1.0f);
     glm::vec3 color;    // Tint (R, G, B)
     glm::vec3 normal;   // Direction for lighting calculations (X, Y, Z)
+	glm::vec2 texCoords; 
 
     // Explicitly public constructor
-    Vertex(glm::vec3 p, glm::vec3 c, glm::vec3 n)
-        : position(p), color(c), normal(n) {
+    Vertex(glm::vec3 p, glm::vec3 c, glm::vec3 n, glm::vec2 uv = glm::vec2(0.0f))
+        : position(p), color(c), normal(n), texCoords(uv) {
     }
 };
 
@@ -74,6 +75,10 @@ private:
         // Location 2: Normal
         glEnableVertexAttribArray(2);
         glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, normal));
+
+		glEnableVertexAttribArray(3);
+		glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, stride, (void*)offsetof(Vertex, texCoords));	
+		
     }
 
 public:
