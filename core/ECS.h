@@ -22,9 +22,9 @@ public:
     std::vector<LifetimeComponent> lifetimes;
     std::vector<CameraComponent> cameras; // New vector to hold camera components
     std::vector<NameComponent> names;
-    std::vector<TextureComponent> textures; // Storage for the component
-    std::vector<bool> hasTexture;           // Tracker for the component
-    
+    std::vector<TextureComponent> textures; 
+    std::vector<PhysicsComponent> physics;
+
     
     // We use a simple way to track which entity has which componetes.  
     std::vector<bool> hasTransform;
@@ -35,7 +35,9 @@ public:
     std::vector<bool> hasLifetime;
     std::vector<bool> hasCamera; // Track which entities have a CameraComponent
     std::vector<bool> hasName;
-    
+    std::vector<bool> hasTexture;           
+	std::vector<bool> hasPhysics;
+
     Entity CreateEntity(){        
         // New entity ID is the current size of the component arrays
         Entity id = hasTransform.size();                 
@@ -50,6 +52,7 @@ public:
         names.push_back({defaultName});
         textures.push_back({});
 		cameras.push_back({}); // we need to limit how many camera ?		
+    	physics.push_back({});
 
         hasTransform.push_back(false); // Initially, the entity has no components
         hasRenderable.push_back(false); // Initially, the entity has no components
@@ -60,6 +63,7 @@ public:
         hasName.push_back(true);
         hasTexture.push_back(false);
 		hasCamera.push_back(false);
+        hasPhysics.push_back(false);
         
         ++entityCount;
         return id;
@@ -78,7 +82,7 @@ public:
                 rotations.erase(rotations.begin() + i);
                 lifetimes.erase(lifetimes.begin() + i);
                 cameras.erase(cameras.begin() + i);
-                textures.erase(textures.begin() + i);
+                textures.erase(textures.begin() + i);                
                 
                 hasName.erase(hasName.begin() + i);
                 hasTransform.erase(hasTransform.begin() + i);
@@ -105,6 +109,7 @@ public:
 		cameras.clear();
 		names.clear();
 		textures.clear();
+		physics.clear();
 		
 		// Reset all tracking vectors
 		hasTransform.clear();
@@ -116,6 +121,7 @@ public:
 		hasName.clear();
 		hasTexture.clear();
 		hasCamera.clear();
+		hasPhysics.clear();
 		
 		entityCount = 0;
 	}
@@ -177,5 +183,13 @@ public:
 		textures[entity] = textureComponent;
 		hasTexture[entity] = true;
 	}
-    
+	
+	// Enables collision/physics for an entity. Without calling this,
+    // hasPhysics[e] stays false and MovementSystem's collision check
+    // against this entity will always be skipped.
+    void AddPhysics(Entity e, PhysicsComponent p) {
+        if (physics.size() <= e) physics.resize(e + 1);
+        physics[e] = p;
+        hasPhysics[e] = true;
+    }	    
 };

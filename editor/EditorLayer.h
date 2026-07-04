@@ -19,8 +19,6 @@ extern Registry registry;
 static Entity selectedEntity;
 bool requestCameraReset;
 Renderer renderer;
-EditorState gameState;
-
 
 class EditorLayer {
 private: 
@@ -272,8 +270,16 @@ public:
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 1.0f));
                 if (ImGui::Button(" Stop ", ImVec2(buttonWidthPlay, 0))) {
                     gameState = EditorState::Editor;
-                    Logger::Log("State changed to Editor Mode");
-                }
+					Logger::Log("State changed to Editor Mode");
+					
+					// Reset velocities so entities aren't moving when you resume
+					for (size_t i = 0; i < registry.GetEntityCount(); i++) {
+						if (registry.hasVelocity[i]) {
+							registry.velocities[i].value = glm::vec3(0.0f);
+						}
+					}			
+					Logger::Log("State changed to Editor Mode - Physics Reset");                    
+                }                                         
                 ImGui::PopStyleColor();
             }
 
@@ -591,7 +597,15 @@ public:
 						Logger::Log("Texture removed from entity " + std::to_string(selectedEntity));
 					}
 				}
-				
+			
+				if (ImGui::Checkbox("enable collision", &registry.physics[selectedEntity].isEnabled)) {
+					// AddPhysics both resizes the physics vector safely and sets
+					// hasPhysics[selectedEntity] = true, so MovementSystem's
+					// (hasPhysics && isEnabled) check actually passes.
+					registry.AddPhysics(selectedEntity, { registry.physics[selectedEntity].isEnabled });
+				}
+
+	
             }          
         ImGui::End();
 

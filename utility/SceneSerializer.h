@@ -61,12 +61,19 @@ public:
                 entity["name"] = reg.names[i].name;
             }
             
+            
+            if (reg.hasPhysics[i]) { // Ensure you have a check for the physics component
+				entity["physics"] = {
+					{"isEnabled", reg.physics[i].isEnabled}
+				};
+			}
+            
             if (reg.hasRenderable[i]) { 
                 entity["meshName"] = "cube"; 
                 // for the future to add object using file path .obj 
                 //entity["meshPath"] = reg.renderables[i].meshPath;
             }
-
+            
 			// Save texture asset path so it can be reloaded from disk later.
 			// We deliberatly do NOT save textureID -- it's a runtime GPU handle
 			// and gets regenerated fresh by MeshManager::LoadTexture() on load.
@@ -136,6 +143,11 @@ public:
                 reg.colors[entity].color.z = entityData["color"]["b"];
                 reg.hasColor[entity] = true;
             }
+
+			if (entityData.contains("physics")) {
+				reg.physics[entity].isEnabled = entityData["physics"]["isEnabled"];
+				reg.hasPhysics[entity] = true; // Mark component as active
+			}
 
             // Load Name if it exists
             if (entityData.contains("name")) {

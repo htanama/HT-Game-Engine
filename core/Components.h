@@ -21,6 +21,14 @@ struct CameraComponent {
     bool isPlayerCamera = false; // True if this camera should be used for player view
 };
 
+struct PhysicsComponent{
+	bool isEnabled = false;
+	bool isPhysicsWireframe = false; // Used to toggle visual debug
+	// TODO store a simplified convex hull mesh for performance
+
+};
+
+
 // The Renderable component tells the RenderSystem which mesh to draw for this entity, 
 // and what color to use if not using vertex colors.
 struct Renderable {

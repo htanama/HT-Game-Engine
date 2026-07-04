@@ -17,7 +17,7 @@ extern Entity selectedEntity;
 extern Renderer renderer;
 Registry registry;
 
-extern EditorState gameState;
+EditorState gameState = EditorState::Editor;
 static glm::vec3 dragOffset(0.0f);
 static glm::vec3 initialEntityPosition(0.0f);
 static glm::vec3 initialMouseWorldPos(0.0f);
@@ -51,6 +51,18 @@ int main(int argc, char* argv[]) {
 
     SDL_Event event;
     Uint64 lastTime = SDL_GetTicks();          
+
+
+	// Create test entity
+Entity testEntity = registry.CreateEntity();
+registry.AddTransform(testEntity, { glm::vec3(-5.0f, 0.0f, 0.0f), glm::vec3(1.0f) });
+registry.AddVelocity(testEntity, glm::vec3(2.0f, 0.0f, 0.0f)); // Moves right at 2 units/sec
+registry.hasVelocity[testEntity] = true;
+registry.names[testEntity] = {"player"};
+std::shared_ptr<Mesh> meshInstance = MeshManager::CreateNewCubeMesh();
+registry.renderables[testEntity].mesh = meshInstance;
+registry.hasRenderable[testEntity] = true;
+
 	
     while (Engine::isRunning) {
         // Calculate deltaTime
@@ -139,6 +151,9 @@ int main(int argc, char* argv[]) {
 						if (selectedEntity != -1) {
 							isDragging = true;
 							
+							// Store the starting state
+						    initialEntityPosition = registry.transforms[selectedEntity].position;
+							
 							// Calculate offset: Where does the ray hit the plane passing through the object?
 							float dist;
 							glm::vec3 planeNormal = -editorCamera.GetForwardVector(); // Plane faces camera
@@ -184,8 +199,8 @@ int main(int argc, char* argv[]) {
 				if(event.button.button == SDL_BUTTON_LEFT){
 					isDragging = false; // Release the object
 				}
-			}
-
+			}	
+			
 
 		}
 			              
@@ -206,9 +221,12 @@ int main(int argc, char* argv[]) {
             editorCamera.MovementSpeed = original_speed + 4.0f;
         else {
             editorCamera.MovementSpeed = original_speed;
-        }
-
-
+        }	
+		
+		if (gameState == EditorState::Playing){
+				MovementSystem(registry, deltaTime);
+		}
+	
         float currentAspectRatio = (float)renderer.currentWindowWidth / renderer.currentWindowHeight;        
 
         // Render Game Scene
