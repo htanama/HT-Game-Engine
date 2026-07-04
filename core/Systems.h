@@ -2,6 +2,8 @@
 #include "ECS.h"
 #include "Shader.h"
 
+constexpr float EPSILON = 1e-6f;
+
 // A simple AABB structure for object
 struct AABB{
 	glm::vec3 min;
@@ -9,7 +11,7 @@ struct AABB{
 };
 
 // Return true if the ray hits the AABB
-bool RayIntersectsAABB(const Ray& ray, glm::vec3 pos, glm::vec3 scale, float& distance) {
+bool RayIntersectsAABB(const Ray& ray, glm::vec3 pos, glm::vec3 scale, float& hitDistance) {
     glm::vec3 min = pos - (scale * 0.5f);
     glm::vec3 max = pos + (scale * 0.5f);
     
@@ -25,8 +27,24 @@ bool RayIntersectsAABB(const Ray& ray, glm::vec3 pos, glm::vec3 scale, float& di
     float t_far = glm::min(glm::min(tmax.x, tmax.y), tmax.z);
     
     if (t_far < 0 || t_near > t_far) return false;
-    distance = t_near;
+    hitDistance = t_near;
     return true;
+}
+
+// Returns true if the ray intersects the plane, and sets 'distance' to the hit point
+bool RayIntersectsPlane(const Ray& ray, glm::vec3 planePoint, glm::vec3 planeNormal, float& hitDistance) {
+    float denom = glm::dot(planeNormal, ray.direction);
+    
+    // Check if the ray is parallel to the plane (avoid division by zero)
+    if (std::abs(denom) > EPSILON) {
+        glm::vec3 originToPlane = planePoint - ray.origin;
+        hitDistance = glm::dot(originToPlane, planeNormal) / denom;
+        
+        // If distance is negative, the plane is behind the ray origin
+        return (hitDistance >= 0);
+    }
+    
+    return false;
 }
 
 Entity PickEntity(const Ray& ray, Registry& reg) {

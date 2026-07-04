@@ -49,6 +49,7 @@ public:
         lifetimes.push_back({}); // Add default LifetimeComponent
         names.push_back({defaultName});
         textures.push_back({});
+		cameras.push_back({}); // we need to limit how many camera ?		
 
         hasTransform.push_back(false); // Initially, the entity has no components
         hasRenderable.push_back(false); // Initially, the entity has no components
@@ -58,6 +59,7 @@ public:
         hasLifetime.push_back(false); // Initially, the entity has no components
         hasName.push_back(true);
         hasTexture.push_back(false);
+		hasCamera.push_back(false);
         
         ++entityCount;
         return id;
@@ -91,6 +93,32 @@ public:
             }
         }        
     }
+	
+	void ClearScene() {
+		// Clear all component vectors
+		transforms.clear();
+		renderables.clear();
+		velocities.clear();
+		colors.clear();
+		rotations.clear();
+		lifetimes.clear();
+		cameras.clear();
+		names.clear();
+		textures.clear();
+		
+		// Reset all tracking vectors
+		hasTransform.clear();
+		hasRenderable.clear();
+		hasVelocity.clear();
+		hasColor.clear();
+		hasRotation.clear();
+		hasLifetime.clear();
+		hasName.clear();
+		hasTexture.clear();
+		hasCamera.clear();
+		
+		entityCount = 0;
+	}
 
     // Helper function to check if an entity has a specific component
     void AddTransform(Entity e, Transform t) {
@@ -139,11 +167,15 @@ public:
         }
     }
     
-    void AddTexture(Entity e, TextureComponent t) {
-		if (textures.size() <= e) textures.resize(e + 1);
-		if(t.textureID != 0) t.useTexture = true;
-		textures[e] = t;
-		hasTexture[e] = true;
+    void AddTexture(Entity entity, TextureComponent textureComponent) {
+		if (textures.size() <= entity) 
+			textures.resize(entity + 1);
+		
+		if(textureComponent.textureID != 0) 
+			textureComponent.useTexture = true;
+		
+		textures[entity] = textureComponent;
+		hasTexture[entity] = true;
 	}
     
 };

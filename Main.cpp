@@ -18,6 +18,9 @@ extern Renderer renderer;
 Registry registry;
 
 extern EditorState gameState;
+static glm::vec3 dragOffset(0.0f);
+static glm::vec3 initialEntityPosition(0.0f);
+static glm::vec3 initialMouseWorldPos(0.0f);
 bool isDragging = false;
 
 
@@ -42,7 +45,7 @@ int main(int argc, char* argv[]) {
     Logger::Log("Rendering Initialization Complete");
     
     Camera editorCamera;
-    float original_speed = 1.0f;
+    float original_speed = 4.0f;
     editorCamera.MovementSpeed = original_speed;
     editorCamera.position = glm::vec3(0.0f, 5.0f, 10.0f);
 
@@ -86,40 +89,96 @@ int main(int argc, char* argv[]) {
             }
 		
 			// Perform raycasting to select object on the scene
+			//if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+			//	if(event.button.button == SDL_BUTTON_LEFT) {
+			//		ImGuiIO& io = ImGui::GetIO();
+			//		if (!io.WantCaptureMouse) { // perform raycast if ImGui does not need the mouse
+			//			float mx = (float)event.button.x;
+			//			float my = (float)event.button.y;
+			//		
+			//			Ray ray = editorCamera.ScreenToWorldRay(mx, my, renderer.currentWindowWidth, renderer.currentWindowHeight);
+			//			selectedEntity = PickEntity(ray, registry);
+			//		
+			//			if (selectedEntity != -1) {
+			//				isDragging = true; // grab object
+			//				std::cout << "You clicked entity: " << selectedEntity << std::endl;
+			//			}
+			//		}
+			//	}
+			//}
+
+			//if (event.type == SDL_EVENT_MOUSE_MOTION) {
+			//	if (isDragging && selectedEntity != -1) {
+			//		// Move the entity based on mouse movement
+			//		// We project the mouse position onto a plane at the object's current height (y)
+			//		float height = registry.transforms[selectedEntity].position.y;
+			//		
+			//		Ray ray = editorCamera.ScreenToWorldRay((float)event.motion.x, (float)event.motion.y, 
+			//												renderer.currentWindowWidth, renderer.currentWindowHeight);
+			//		
+			//		// This math finds where the ray hits the horizontal plane of the object
+			//		float t = (height - ray.origin.y) / ray.direction.y;
+			//		glm::vec3 newPos = ray.origin + (ray.direction * t);
+			//		
+			//		registry.transforms[selectedEntity].position = newPos;
+			//	}
+			//}
+			
+
+			// Mouse Down: Calculate offset to prevent snapping
 			if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
 				if(event.button.button == SDL_BUTTON_LEFT) {
 					ImGuiIO& io = ImGui::GetIO();
-					if (!io.WantCaptureMouse) { // perform raycast if ImGui does not need the mouse
+					if (!io.WantCaptureMouse) {
 						float mx = (float)event.button.x;
 						float my = (float)event.button.y;
-					
+
 						Ray ray = editorCamera.ScreenToWorldRay(mx, my, renderer.currentWindowWidth, renderer.currentWindowHeight);
 						selectedEntity = PickEntity(ray, registry);
-					
+
 						if (selectedEntity != -1) {
-							isDragging = true; // grab object
-							std::cout << "You clicked entity: " << selectedEntity << std::endl;
+							isDragging = true;
+							
+							// Calculate offset: Where does the ray hit the plane passing through the object?
+							float dist;
+							glm::vec3 planeNormal = -editorCamera.GetForwardVector(); // Plane faces camera
+							RayIntersectsPlane(ray, registry.transforms[selectedEntity].position, planeNormal, dist);
+							glm::vec3 worldPos = ray.origin + (ray.direction * dist);
+							dragOffset = registry.transforms[selectedEntity].position - worldPos;
 						}
 					}
 				}
 			}
 
+			// Mouse Motion: Use the same camera-facing plane logic
 			if (event.type == SDL_EVENT_MOUSE_MOTION) {
-				if (isDragging && selectedEntity != -1) {
-					// Move the entity based on mouse movement
-					// We project the mouse position onto a plane at the object's current height (y)
-					float height = registry.transforms[selectedEntity].position.y;
+				// Check WantCaptureMouse here too, so we don't move objects if over a UI window
+				ImGuiIO& io = ImGui::GetIO();
+				if (isDragging && selectedEntity != -1 && !io.WantCaptureMouse) {
+					Ray ray = editorCamera.ScreenToWorldRay((float)event.motion.x, (float)event.motion.y,
+														   renderer.currentWindowWidth, renderer.currentWindowHeight);
 					
-					Ray ray = editorCamera.ScreenToWorldRay((float)event.motion.x, (float)event.motion.y, 
-															renderer.currentWindowWidth, renderer.currentWindowHeight);
+					float dist;
+					glm::vec3 planeNormal = -editorCamera.GetForwardVector();
+
+					// We use the initial position as the base for the plane to prevent "snapping"
+					if (RayIntersectsPlane(ray, initialEntityPosition, planeNormal, dist)) {			    
+						// This is the raw world position the mouse is pointing at
+						glm::vec3 currentMouseWorldPos = ray.origin + (ray.direction * dist);
+						
+						// This is the starting point of the mouse when you first clicked
+						// Note: You need to capture 'initialMouseWorldPos' in your MouseDown event!
+						glm::vec3 mouseDelta = currentMouseWorldPos - initialMouseWorldPos;
+
+						// Apply movement only to unlocked axes
+						glm::vec3& pos = registry.transforms[selectedEntity].position;
+						if (!editor.IsLockedX()) pos.x = initialEntityPosition.x + mouseDelta.x;
+						if (!editor.IsLockedY()) pos.y = initialEntityPosition.y + mouseDelta.y;
+						if (!editor.IsLockedZ()) pos.z = initialEntityPosition.z + mouseDelta.z;
 					
-					// This math finds where the ray hits the horizontal plane of the object
-					float t = (height - ray.origin.y) / ray.direction.y;
-					glm::vec3 newPos = ray.origin + (ray.direction * t);
-					
-					registry.transforms[selectedEntity].position = newPos;
+					}
 				}
-			}
+			}	
 
 			if (event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
 				if(event.button.button == SDL_BUTTON_LEFT){
@@ -144,7 +203,7 @@ int main(int argc, char* argv[]) {
         }
         
         if (state[SDL_SCANCODE_LSHIFT]) 
-            editorCamera.MovementSpeed = 5.0f;
+            editorCamera.MovementSpeed = original_speed + 4.0f;
         else {
             editorCamera.MovementSpeed = original_speed;
         }

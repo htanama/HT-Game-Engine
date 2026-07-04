@@ -1,0 +1,178 @@
+{
+    "entities": [
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 0,
+            "meshName": "cube",
+            "name": "floor1",
+            "rotation": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            },
+            "scale": {
+                "x": 5.0,
+                "y": 0.20000000298023224,
+                "z": 5.0
+            },
+            "texture": {
+                "path": "assets/chess_tile.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -4.970861911773682,
+                "y": -0.011300325393676758,
+                "z": 0.009802818298339844
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 1,
+            "meshName": "cube",
+            "name": "floor2",
+            "rotation": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            },
+            "scale": {
+                "x": 5.0,
+                "y": 0.20000000298023224,
+                "z": 5.0
+            },
+            "texture": {
+                "path": "assets/tile.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 0.800000011920929,
+                "y": 0.0,
+                "z": 6.900000095367432
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 2,
+            "meshName": "cube",
+            "name": "box1",
+            "rotation": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            },
+            "scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            },
+            "texture": {
+                "path": "assets/wood.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -3.799999952316284,
+                "y": 0.5,
+                "z": 0.0
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 3,
+            "meshName": "cube",
+            "name": "box2",
+            "rotation": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            },
+            "scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            },
+            "texture": {
+                "path": "assets/stone.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 0.9197959899902344,
+                "y": 0.9237723350524902,
+                "z": 7.395915508270264
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 4,
+            "meshName": "cube",
+            "name": "wall",
+            "rotation": {
+                "x": 1.0,
+                "y": 90.0,
+                "z": 1.0
+            },
+            "scale": {
+                "x": 0.20000000298023224,
+                "y": 4.0,
+                "z": 5.0
+            },
+            "texture": {
+                "path": "assets/brick.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -4.96003532409668,
+                "y": 1.861741542816162,
+                "z": -2.4722607135772705
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 5,
+            "meshName": "cube",
+            "name": "poll",
+            "rotation": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            },
+            "scale": {
+                "x": 0.5,
+                "y": 10.0,
+                "z": 0.5
+            },
+            "texture": {
+                "path": "assets/dirt.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 0.9752240180969238,
+                "y": 4.457109451293945,
+                "z": 4.913601875305176
+            }
+        }
+    ]
+}

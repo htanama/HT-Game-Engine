@@ -18,6 +18,10 @@ public:
     static const std::vector<std::string>& GetLogMessages(){
         return logMessages;
     }
+    
+    static void ClearLogs() {
+        logMessages.clear();
+    }
 
 };
 

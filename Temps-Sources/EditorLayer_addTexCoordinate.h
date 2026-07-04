@@ -10,7 +10,7 @@
 #include "utility/SceneSerializer.h"
 
 #include "../imgui/imgui.h"
-#include "../imgui/imgui_internal.h" // required for ImGui::DockBuilder function
+#include "../imgui/imgui_internal.h" // required for ImGui::DockBuilder* functions
 #include "../imgui/backends/imgui_impl_sdl3.h"
 #include "../imgui/backends/imgui_impl_opengl3.h"
 #include <SDL3/SDL.h>
@@ -21,22 +21,13 @@ bool requestCameraReset;
 Renderer renderer;
 EditorState gameState;
 
-
 class EditorLayer {
 private: 
     std::vector<float> gridVertices;
-    unsigned int m_gridVAO = 0;
-    unsigned int m_gridVBO = 0;
+    unsigned int m_gridVAO;
+    unsigned int m_gridVBO;
     int m_gridCount; // grid count
     int m_width = 0, m_height = 0;
-	bool showSavePopup = false;
-
-	SDL_Window* m_window = nullptr; 
-
-	 // Axis Lock States
-    bool m_lockX = false;
-    bool m_lockY = false;
-    bool m_lockZ = false;
 
     int SetupGrid(unsigned int& vao, unsigned int& vbo, float width, float step = 1.0f) {
         std::vector<float> vertices;
@@ -71,7 +62,7 @@ private:
         glBindVertexArray(0);
         return (int)vertices.size() / 3;
     }
-	
+    
 public:  
     ~EditorLayer() {
         glDeleteVertexArrays(1, &m_gridVAO);
@@ -79,8 +70,7 @@ public:
     }
 
     void Init(SDL_Window* window, SDL_GLContext context) {
-        m_window = window;
-		ImGui::CreateContext();
+        ImGui::CreateContext();
     
         // Enable the Docking Feature
         ImGuiIO& io = ImGui::GetIO();
@@ -101,143 +91,27 @@ public:
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
     }
-	
-	// Callback for loading a texture path
-	static void TextureCallback(void* userdata, const char* const* filelist, int filter) {
-		if (filelist && *filelist) {
-			if (selectedEntity != -1) {
-				std::string selectedPath = *filelist;
-				
-				// Update the path in the registry
-				registry.textures[selectedEntity].path = selectedPath;
-				
-				// Perform the load and application automatically
-				TextureComponent textureComponent;
-				textureComponent.textureID = MeshManager::LoadTexture(selectedPath);
-				textureComponent.useTexture = true; 
-				textureComponent.path = selectedPath;
-				
-				registry.AddTexture(selectedEntity, textureComponent);
-				registry.hasTexture[selectedEntity] = true;
-				
-				Logger::Log("Texture automatically applied: " + selectedPath);
-			}
-		}
-	}
-
-	static void SaveSceneCallback(void* userdata, const char* const* filelist, int filter) {
-		if (filelist && *filelist) {
-			EditorLayer* instance = static_cast<EditorLayer*>(userdata);
-			std::string filename = *filelist;
-		
-			if (filename.length() < 6 || filename.substr(filename.length() - 6) != ".scene") {
-				filename += ".scene";
-			}
-
-			// Use global registry
-			SceneSerializer::SaveScene(registry, filename);
-			Logger::Log("Scene saved to: " + filename);
-			
-			// This variable is local to the function in Draw(), 
-			// to set a flag in the class, add 'bool showSavePopup' to your class members
-			instance->showSavePopup = true; 
-		}
-	}
-
-	// Callback for loading a scene
-	static void LoadSceneCallback(void* userdata, const char* const* filelist, int filter) {
-		if (filelist && *filelist) {
-			SceneSerializer::LoadScene(registry, *filelist);
-    	    Logger::Log("Scene loaded from: " + std::string(*filelist));
-		}
-	}	
-
-	// Public methods use standard naming without 
-    bool IsLockedX() const { return m_lockX; }
-    bool IsLockedY() const { return m_lockY; }
-    bool IsLockedZ() const { return m_lockZ; }
-
-	// Helper to be used inside Draw() for cleaner UI
-	void DrawTransformUI(Transform& t) {
-        ImGui::Text("Position");
-        
-        // Use checkboxes to update the private state
-        ImGui::Checkbox("Lock X", &m_lockX); ImGui::SameLine();
-        ImGui::Checkbox("Lock Y", &m_lockY); ImGui::SameLine();
-        ImGui::Checkbox("Lock Z", &m_lockZ);
-
-        ImGui::Columns(3, nullptr, false);
-        ImGui::Text("X"); ImGui::NextColumn();
-        ImGui::Text("Y"); ImGui::NextColumn();
-        ImGui::Text("Z"); ImGui::NextColumn();
-        ImGui::Columns(1);
-
-        ImGui::SetNextItemWidth(-FLT_MIN);
-        
-        // Individual DragFloats enforce the lock by disabling input for that axis
-        //if (!m_lockX) {
-        //    ImGui::DragFloat("##PosX", &t.position.x, 0.1f);
-        //} else {
-        //    ImGui::TextDisabled("%.2f (Locked)", t.position.x);
-        //}
-        //
-        //ImGui::SameLine();
-        //
-        //if (!m_lockY) {
-        //    ImGui::DragFloat("##PosY", &t.position.y, 0.1f);
-        //} else {
-        //    ImGui::TextDisabled("%.2f (Locked)", t.position.y);
-        //}
-        //
-        //ImGui::SameLine();
-        //
-        //if (!m_lockZ) {
-        //    ImGui::DragFloat("##PosZ", &t.position.z, 0.1f);
-        //} else {
-        //    ImGui::TextDisabled("%.2f (Locked)", t.position.z);
-        //}
-	}
 
     void Draw(Camera &editorCamera) 
     {
         // Dynamically get the size of the current UI window, not the whole application
         ImVec2 viewportSize = ImGui::GetContentRegionAvail();
 
-       
+        static bool showSavePopup = false;
+
         // 1. GLOBAL MENU BAR (Must be outside the DockSpace Host)
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("File")) {
-		        if (ImGui::MenuItem("New Scene", "Ctrl+N")) { 
-					Logger::Log("New Scene"); 
-
-				    // Before calling ClearScene()
-					for (size_t i = 0; i < registry.textures.size(); ++i) {
-				        if (registry.hasTexture[i]) {
-            				MeshManager::RemoveTexture(registry.textures[i].textureID); // Free GPU memory
-        				}
-    				}
-					registry.ClearScene(); // Now safely clear the component data[cite: 10]
-				
-				 	// 2. Force the MeshManager to remove all meshes that are no longer referenced
-					MeshManager::meshLibrary.clear(); // Clear the library
-					MeshManager::CleanupUnusedMeshes(); // Ensure GPU/Memory cleanup
-				
-					// 3. Reset selection
-					selectedEntity = -1;
-				
-					Logger::Log("New Scene created. All entities and meshes cleared."); 
-
-				}
-        
-	        	if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {   
-					// Only open the dialog here. Do not save yet!
-					SDL_ShowSaveFileDialog(SaveSceneCallback, this, m_window, nullptr, 0, nullptr);
-				}               	
-
- 
+                if (ImGui::MenuItem("New Scene", "Ctrl+N")) { Logger::Log("New Scene"); }
+                
+                if (ImGui::MenuItem("Save Scene", "Ctrl+S"))   {
+                    SceneSerializer::SaveScene(registry, "world.scene");
+                    Logger::Log("Scene saved to world.scene");
+                    showSavePopup = true;
+                }
+                
                 if (ImGui::MenuItem("Load Scene", "Ctrl+L")) {
-                	//SceneSerializer::LoadScene(registry, "world.scene");
-					SDL_ShowOpenFileDialog(LoadSceneCallback, this, m_window, nullptr, 0, nullptr, false);
+                    SceneSerializer::LoadScene(registry, "world.scene");
                 }
                 
                 if (ImGui::MenuItem("Exit")) { Engine::SetIsRunning(false); }
@@ -286,11 +160,11 @@ public:
         // Create a dockspace in main viewport, where central node is transparent.
         ImGuiID dockspace_id = ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), ImGuiDockNodeFlags_PassthruCentralNode);
 
-		// Build a FIXED default layout the first time this run
-		static bool dockLayoutBuilt = false;
-		if(!dockLayoutBuilt){
-			dockLayoutBuilt = true;
-			
+        // --- Build a FIXED default layout the first time this runs ---
+        static bool dockLayoutBuilt = false;
+        if (!dockLayoutBuilt) {
+            dockLayoutBuilt = true;
+
             // Wipe out any existing layout for this dockspace node and start fresh
             ImGui::DockBuilderRemoveNode(dockspace_id);
             ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
@@ -298,11 +172,11 @@ public:
 
             // Split off a left dock (20%) for the Scene panel
             ImGuiID dock_left_id = ImGui::DockBuilderSplitNode(
-            dockspace_id, ImGuiDir_Left, 0.20f, nullptr, &dockspace_id);
+                dockspace_id, ImGuiDir_Left, 0.20f, nullptr, &dockspace_id);
 
             // Split off a right dock (22%) for the Inspector panel
             ImGuiID dock_right_id = ImGui::DockBuilderSplitNode(
-            dockspace_id, ImGuiDir_Right, 0.22f, nullptr, &dockspace_id);
+                dockspace_id, ImGuiDir_Right, 0.22f, nullptr, &dockspace_id);
 
             // Split off a bottom dock (25% of what's left) for the Output Console
             ImGuiID dock_bottom_id = ImGui::DockBuilderSplitNode(
@@ -316,8 +190,7 @@ public:
             ImGui::DockBuilderDockWindow("Output Console", dock_bottom_id);
 
             ImGui::DockBuilderFinish(dockspace_id);
-			
-		}
+        }
 
         ImGuiWindowFlags host_flags = ImGuiWindowFlags_NoDocking | 
                                     ImGuiWindowFlags_NoTitleBar | 
@@ -361,7 +234,7 @@ public:
                 Logger::Log("Added New Entity and total number of entities: " + std::to_string(registry.GetEntityCount()));
             }             
                       
-            // to check the correct entity to rename 			
+            // to check the correct entity to rename
             static Entity renamingEntity = (Entity)-1;
             static char nameBuffer[64] = "";
 
@@ -498,9 +371,7 @@ public:
                 ImGui::Columns(1);
                 ImGui::SetNextItemWidth(-FLT_MIN);
                 ImGui::DragFloat3("##Scale", &t.scale.x, 0.05f);
-				
-				DrawTransformUI(t);
-			
+
                 static bool checked = false;
                 ImGui::Checkbox("Wireframe", &checked);
                 // SAFE GUARD: Check if the index is valid BEFORE doing anything
@@ -535,42 +406,40 @@ public:
 				ImGui::Text("Texture Settings");
 
 				// Create a buffer for the file path (static so it persists)
-				char pathBuffer[128] = "assets/wood.png"; 
-				
-				if (selectedEntity != -1) {
-					// 1. If we have a valid selection, update the buffer from the entity's data
-					if (registry.hasTexture[selectedEntity]) {
-						std::string path = registry.textures[selectedEntity].path;
-						strncpy(pathBuffer, path.c_str(), sizeof(pathBuffer));
-					} else {
-						// Fallback for entities without textures
-						strncpy(pathBuffer, "No texture", sizeof(pathBuffer));
-					}
+				static char pathBuffer[128] = "assets/wood.png";
+				static Entity lastPathEntity = (Entity)-1;
 
-					// 2. Render the UI
-					if (ImGui::InputText("Path", pathBuffer, sizeof(pathBuffer))) {
-						// 3. Optional: If the user types in the box, update your registry component here
-						if (registry.hasTexture[selectedEntity]) {
-							registry.textures[selectedEntity].path = std::string(pathBuffer);
-						}
+				// When the selected entity changes, refresh the buffer to show
+				// THAT entity's actual texture path (instead of leaking the
+				// previous entity's path into a new selection).
+				if (selectedEntity != lastPathEntity) {
+					lastPathEntity = selectedEntity;
+					if (selectedEntity != -1 && selectedEntity < registry.hasTexture.size() &&
+						registry.hasTexture[selectedEntity] && !registry.textures[selectedEntity].path.empty()) {
+						strncpy(pathBuffer, registry.textures[selectedEntity].path.c_str(), sizeof(pathBuffer) - 1);
+						pathBuffer[sizeof(pathBuffer) - 1] = '\0';
+					} else {
+						strncpy(pathBuffer, "assets/wood.png", sizeof(pathBuffer) - 1);
+						pathBuffer[sizeof(pathBuffer) - 1] = '\0';
 					}
 				}
 
-				if (ImGui::Button("Browse...")) {					
-					SDL_ShowOpenFileDialog(TextureCallback, this, m_window, nullptr, 0, nullptr, false);
-					Logger::Log("Browse for texture files: ");
+				ImGui::InputText("Path", pathBuffer, sizeof(pathBuffer));
+				if (ImGui::Button("Browse...")) {
+					// TIP: Integrate 'tinyfiledialogs' here to open a real OS file picker.
+					Logger::Log("File dialog triggered: Browse for texture files.");
 				}
 				
 				ImGui::SameLine();
 				
 				if (ImGui::Button("Apply Texture")) {
-					TextureComponent textureComponent;
-					textureComponent.textureID = MeshManager::LoadTexture(pathBuffer);
-					//textureComponent.textureID = MeshManager::LoadTextureToOpenGL(pathBuffer);
-					textureComponent.useTexture = true; 
-					textureComponent.path = pathBuffer; // Save the asset path so SceneSerializer can reload it later
-					registry.AddTexture(selectedEntity, textureComponent);
- 					registry.hasTexture[selectedEntity] = true;					
+					TextureComponent tc;
+					tc.textureID = MeshManager::LoadTexture(pathBuffer);
+					//tc.textureID = MeshManager::LoadTextureToOpenGL(pathBuffer);
+					tc.useTexture = true;  
+					tc.path = pathBuffer; // Save the asset path so SceneSerializer can reload it later
+ 					registry.AddTexture(selectedEntity, tc);					
+					registry.hasTexture[selectedEntity] = true;
 
 				}
 				
@@ -596,15 +465,7 @@ public:
         ImGui::End();
 
         ImGui::Begin("Output Console");
-			float buttonWidth = ImGui::CalcTextSize("Clear").x + ImGui::GetStyle().FramePadding.x * 2.0f;
-			float availableWidth = ImGui::GetContentRegionAvail().x;
-			ImGui::SetCursorPosX(ImGui::GetCursorPosX() + availableWidth - buttonWidth);
-
-			if (ImGui::Button("Clear")) {
-				Logger::ClearLogs();
-			}
-
-			ImGui::Columns(2, "ConsoleColumns", true);
+            ImGui::Columns(2, "ConsoleColumns", true);
             ImGui::SetColumnWidth(0, ImGui::GetWindowWidth() * 0.85f);
 
             const std::vector<std::string>& messages = Logger::GetLogMessages();

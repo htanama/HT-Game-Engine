@@ -13,7 +13,7 @@ struct Transform{
 struct TextureComponent {
     unsigned int textureID = 0; // OpenGL texture handle
     bool useTexture = false;    // Toggle for the shader
-	std::string path;			// Source asset path for save/load (e.g. "assets/tile.png")
+    std::string path;           // Source asset path (e.g. "assets/tile.png"), needed for save/load
 };
 
 struct CameraComponent {

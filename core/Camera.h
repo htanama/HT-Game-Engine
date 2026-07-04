@@ -116,7 +116,15 @@ public:
         return glm::normalize(forward);
     }
 
-
+	glm::vec3 GetForwardVector() const {
+		return glm::vec3(
+		    cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
+		    sin(glm::radians(pitch)),
+		    sin(glm::radians(yaw)) * cos(glm::radians(pitch))
+		);
+	}
+	
+	
 	Ray ScreenToWorldRay(float mouseX, float mouseY, int screenWidth, int screenHeight) const {
 		// Calculate aspect ratio
 		float aspect = (float)screenWidth / (float)screenHeight;
