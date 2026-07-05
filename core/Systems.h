@@ -114,28 +114,13 @@ void RequestDeleteEntity(Registry& registry, Entity entityID) {
       
 }
 
-//void MovementSystem(Registry& reg, float deltaTime) {
-//	glm::vec3 nextPos = reg.transforms[e].position + (reg.velocities[e].velocity * deltaTime);
-//
-//    // Iterate through the vector using an index to get the Entity ID
-//    for (size_t entity = 0; entity < reg.hasTransform.size(); ++entity) {
-//        
-//        // Ensure the entity actually has both a Transform and a Velocity component
-//        if (reg.hasTransform[entity] && reg.hasVelocity[entity]) {
-//            
-//            // Apply the velocity: Position += Velocity * DeltaTime
-//            reg.transforms[entity].position += reg.velocities[entity].value * deltaTime;
-//        }
-//    }   
-//}
-
 void MovementSystem(Registry& reg, float deltaTime) {
     // Shared static flag to track state across frames for logging
     static bool wasColliding = false;
 
     for (size_t e = 0; e < reg.GetEntityCount(); e++) {
-        // Only move entities with velocity and name "player"
-        if (!reg.hasVelocity[e] || !reg.hasName[e] || reg.names[e].name != "player") continue;
+        // REMOVED: Name-check for "player". Now processes ANY entity with Transform and Velocity.
+        if (!reg.hasVelocity[e] || !reg.hasTransform[e]) continue;
 
         glm::vec3 nextPos = reg.transforms[e].position + (reg.velocities[e].value * deltaTime);
         bool isColliding = false;
@@ -165,17 +150,13 @@ void MovementSystem(Registry& reg, float deltaTime) {
                 wasColliding = true;
             }
             
-            // Revert position and clear velocity
+            // Revert position and clear velocity on impact
             reg.transforms[e].position = originalPos;
             reg.velocities[e].value = glm::vec3(0.0f); 
         } else {
             // Reset the flag and commit the movement
             wasColliding = false;
             reg.transforms[e].position = nextPos;
-			if(reg.velocities[e].value == glm::vec3(0.0f)){
-				// resume velocity no collision
-				reg.velocities[e].value = glm::vec3(2.0f, 0.0f, 0.0f);	
-			}
         }
     }
 }
@@ -228,8 +209,8 @@ void CameraSystem(Registry& reg, Entity playerID, Camera& cam) {
     }
 }
 
-void RenderSystem(Registry& reg, Shader& shader) { 
-
+//void RenderSystem(Registry& reg, Shader& shader) { 
+void RenderSystem(Registry& reg, Shader& shader, Entity selectedEntity = (Entity)-1) {
     for (size_t e = 0; e < reg.renderables.size(); ++e)
     {
         if (!reg.hasRenderable[e]) continue; // Skip if no mesh to draw
@@ -262,6 +243,7 @@ void RenderSystem(Registry& reg, Shader& shader) {
             shader.setInt("ourTexture", 0);
         }
   
+  	        
         // Handle Color logic
 		if (reg.hasColor[e]) {
 			shader.setVec3("objectColor", reg.colors[e].color);
@@ -270,11 +252,10 @@ void RenderSystem(Registry& reg, Shader& shader) {
 			shader.setVec3("objectColor", glm::vec3(1.0f)); 
 		}
 
-
         if (reg.hasColor[e]) {
             shader.setVec3("objectColor", reg.colors[e].color);
-        }
-
+        }       
+         
         if (reg.renderables[e].mesh != nullptr) {
             shader.setBool("isVertexColor", false);
 
@@ -296,7 +277,7 @@ void RenderSystem(Registry& reg, Shader& shader) {
             else {
                 shader.setVec3("objectColor", glm::vec3(1.0f)); // Default white
             }
-            
+                                    
             // Check the entity's specific wireframe flag before drawing
             if (reg.renderables[e].isWireframe) {
                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);

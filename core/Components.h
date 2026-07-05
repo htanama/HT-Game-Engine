@@ -58,5 +58,5 @@ struct LifetimeComponent {
 };
 
 struct NameComponent {
-    std::string name;
+    std::string name; // Entity name
 };

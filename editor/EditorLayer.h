@@ -82,7 +82,7 @@ public:
     
         // Enable the Docking Feature
         ImGuiIO& io = ImGui::GetIO();
-        io.FontGlobalScale = 1.6f;
+        io.FontGlobalScale = 1.2f;
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     
         ImGui_ImplSDL3_InitForOpenGL(window, context);
@@ -171,30 +171,9 @@ public:
         ImGui::Columns(1);
 
         ImGui::SetNextItemWidth(-FLT_MIN);
-        
-        // Individual DragFloats enforce the lock by disabling input for that axis
-        //if (!m_lockX) {
-        //    ImGui::DragFloat("##PosX", &t.position.x, 0.1f);
-        //} else {
-        //    ImGui::TextDisabled("%.2f (Locked)", t.position.x);
-        //}
-        //
-        //ImGui::SameLine();
-        //
-        //if (!m_lockY) {
-        //    ImGui::DragFloat("##PosY", &t.position.y, 0.1f);
-        //} else {
-        //    ImGui::TextDisabled("%.2f (Locked)", t.position.y);
-        //}
-        //
-        //ImGui::SameLine();
-        //
-        //if (!m_lockZ) {
-        //    ImGui::DragFloat("##PosZ", &t.position.z, 0.1f);
-        //} else {
-        //    ImGui::TextDisabled("%.2f (Locked)", t.position.z);
-        //}
+
 	}
+	
 
     void Draw(Camera &editorCamera) 
     {
@@ -266,21 +245,13 @@ public:
                 }
             }
             else {
-                // Optional: Make "Stop" red to signify an active game
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 1.0f));
-                if (ImGui::Button(" Stop ", ImVec2(buttonWidthPlay, 0))) {
-                    gameState = EditorState::Editor;
-					Logger::Log("State changed to Editor Mode");
-					
-					// Reset velocities so entities aren't moving when you resume
-					for (size_t i = 0; i < registry.GetEntityCount(); i++) {
-						if (registry.hasVelocity[i]) {
-							registry.velocities[i].value = glm::vec3(0.0f);
-						}
-					}			
-					Logger::Log("State changed to Editor Mode - Physics Reset");                    
-                }                                         
-                ImGui::PopStyleColor();
+            	  // Optional: Make "Stop" red to signify an active game
+            	   ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 1.0f));
+            	   if (ImGui::Button(" Stop ", ImVec2(buttonWidthPlay, 0))) {
+            		   gameState = EditorState::Editor;
+					   Logger::Log("State changed to Editor Mode");			
+            	  }                                         
+            	  ImGui::PopStyleColor();
             }
 
             ImGui::EndMainMenuBar();            
@@ -317,7 +288,11 @@ public:
             // Whatever remains (dockspace_id) is the central viewport (your 3D scene view)
 
             // Assign each window to its designated dock node
-            ImGui::DockBuilderDockWindow("Scene", dock_left_id);
+            ImGui::DockBuilderDockWindow("Scene", dock_left_id);if (gameState == EditorState::Playing) {
+            // Stop the game and return to Editor mode
+            gameState = EditorState::Editor; 
+            Logger::Log("Game exited to Editor mode via Window Close");
+        }
             ImGui::DockBuilderDockWindow("Inspector", dock_right_id);
             ImGui::DockBuilderDockWindow("Output Console", dock_bottom_id);
 
@@ -353,7 +328,7 @@ public:
                 registry.renderables[newEnt].mesh = meshInstance;
                 registry.hasRenderable[newEnt] = true;
 
-                registry.AddTransform(newEnt, { glm::vec3(0.0f), glm::vec3(1.0f) });
+                registry.AddTransform(newEnt, { glm::vec3(0.0f), glm::vec3(0.0f) });
                 registry.hasTransform[newEnt] = true;
 
                 registry.AddColor(newEnt, { glm::vec3(1.0f, 1.0f, 1.0f) });
@@ -443,7 +418,44 @@ public:
 
         
         ImGui::Begin("Inspector");
-            if (ImGui::Button("Origin")) {
+ 			ImGui::Separator();
+			if (ImGui::Button("Add Component", ImVec2(-1, 0))) {
+				ImGui::OpenPopup("AddComponentPopup");
+			}
+
+			if (ImGui::BeginPopup("AddComponentPopup")) {
+				ImGui::Text("Select Component");
+				ImGui::Separator();
+
+				// List components the entity DOES NOT yet have
+				if (!registry.hasVelocity[selectedEntity]) {
+					if (ImGui::Selectable("Velocity")) {
+						registry.hasVelocity[selectedEntity] = true;
+						// Initialize with default values if necessary
+						registry.velocities[selectedEntity] = { glm::vec3(0.0f) };
+					}
+				}
+				
+				if (!registry.hasRotation[selectedEntity]) {
+					if (ImGui::Selectable("Rotation")) {
+						registry.hasRotation[selectedEntity] = true;
+						registry.rotations[selectedEntity] = { 0.0f, glm::vec3(0,1,0), 0.0f };
+					}
+				}
+
+				if (!registry.hasLifetime[selectedEntity]) {
+					if (ImGui::Selectable("Lifetime")) {
+						registry.hasLifetime[selectedEntity] = true;
+						registry.lifetimes[selectedEntity] = { 60.0f };
+					}
+				}
+
+				ImGui::EndPopup();
+			}
+	   
+			ImGui::Separator();
+
+			if (ImGui::Button("Origin 0,0,0")) {
                 requestCameraReset = true;
             }
             if (requestCameraReset) {
@@ -472,11 +484,10 @@ public:
 				ImGui::Text("Entity ID: %d", (int)selectedEntity);
 			} 
 
-            ImGui::Text("Transform");
+            ImGui::Text("Transform Position");
             if (selectedEntity != -1 && selectedEntity < registry.transforms.size() && registry.hasTransform[selectedEntity]) {
                 Transform& t = registry.transforms[selectedEntity];
-                // --- POSITION ---
-                ImGui::Text("Position");
+                // --- POSITION ---               
                 ImGui::Columns(3, nullptr, false);
                 ImGui::Text("X"); ImGui::NextColumn();
                 ImGui::Text("Y"); ImGui::NextColumn();
@@ -484,7 +495,22 @@ public:
                 ImGui::Columns(1); // Close columns so the sliders aren't forced into them
                 ImGui::SetNextItemWidth(-FLT_MIN);
                 ImGui::DragFloat3("##Position", &t.position.x, 0.1f);
+				
+				ImGui::Separator();
 
+				// --- LOCATE / RESET ---
+                if (ImGui::Button("Locate Entity")) {
+                    // Place the camera a short distance behind/above the entity,
+                    // then use the Camera's own SetDirection() to aim at it.
+                    // (SetDirection handles the pitch sign convention AND calls
+                    // UpdateCameraVectors() so 'front' is refreshed immediately.)
+                    glm::vec3 offset(0.0f, 2.0f, 5.0f);
+                    editorCamera.position = t.position + offset;
+                    editorCamera.SetDirection(t.position - editorCamera.position);
+                }
+
+				ImGui::Separator();	
+				
                 // --- ROTATION ---
                 ImGui::Text("Rotation");
                 ImGui::Columns(3, nullptr, false);
@@ -494,7 +520,8 @@ public:
                 ImGui::Columns(1);
                 ImGui::SetNextItemWidth(-FLT_MIN);
                 ImGui::DragFloat3("##Rotation", &t.rotation.x, 1.0f);
-
+				
+				ImGui::Separator();
                 // --- SCALE ---
                 ImGui::Text("Scale");
                 ImGui::Columns(3, nullptr, false);
@@ -503,8 +530,9 @@ public:
                 ImGui::Text("Z"); ImGui::NextColumn();
                 ImGui::Columns(1);
                 ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::DragFloat3("##Scale", &t.scale.x, 0.05f);
+                ImGui::DragFloat3("##Scale", &t.scale.x, 0.5f);
 				
+				ImGui::Separator();
 				DrawTransformUI(t);
 			
                 static bool checked = false;
@@ -605,6 +633,23 @@ public:
 					registry.AddPhysics(selectedEntity, { registry.physics[selectedEntity].isEnabled });
 				}
 
+								
+				// Adding the Velocity UI to the Inspector
+				if (registry.hasVelocity[selectedEntity]) {
+					ImGui::Separator();
+					ImGui::Text("Velocity");
+					// Use DragFloat3 to edit the value
+					if (ImGui::DragFloat3("##Velocity", &registry.velocities[selectedEntity].value.x, 0.1f)) {
+						// Automatically updates because we are editing the Registry memory directly
+					}
+					
+					// Optional: Add a button to remove the component
+					if (ImGui::Button("Remove Velocity")) {
+						registry.hasVelocity[selectedEntity] = false;
+					}
+				}
+
+			
 	
             }          
         ImGui::End();
@@ -648,8 +693,7 @@ public:
             }
         ImGui::Columns(1);
         ImGui::End();        
-        
-                
+                       
         glDrawArrays(GL_LINES, 0, m_gridCount);
     }
 

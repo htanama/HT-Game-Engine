@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
     Logger::Log("Rendering Initialization Complete");
     
     Camera editorCamera;
-    float original_speed = 4.0f;
+    float original_speed = 7.0f;
     editorCamera.MovementSpeed = original_speed;
     editorCamera.position = glm::vec3(0.0f, 5.0f, 10.0f);
 
@@ -55,10 +55,13 @@ int main(int argc, char* argv[]) {
 
 	// Create test entity
 Entity testEntity = registry.CreateEntity();
-registry.AddTransform(testEntity, { glm::vec3(-5.0f, 0.0f, 0.0f), glm::vec3(1.0f) });
-registry.AddVelocity(testEntity, glm::vec3(2.0f, 0.0f, 0.0f)); // Moves right at 2 units/sec
-registry.hasVelocity[testEntity] = true;
+registry.AddTransform(testEntity, { glm::vec3(-5.0f, 0.0f, 0.0f), glm::vec3(0.0f) });
+registry.AddVelocity(testEntity, glm::vec3(0.0f, -2.0f, 0.0f)); 
 registry.names[testEntity] = {"player"};
+
+registry.colors[testEntity].color = glm::vec3(1.0f, 1.0f, 1.0f); 
+registry.hasColor[testEntity] = true;
+registry.hasVelocity[testEntity] = true;
 std::shared_ptr<Mesh> meshInstance = MeshManager::CreateNewCubeMesh();
 registry.renderables[testEntity].mesh = meshInstance;
 registry.hasRenderable[testEntity] = true;
@@ -73,7 +76,16 @@ registry.hasRenderable[testEntity] = true;
         while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL3_ProcessEvent(&event);
             if (event.type == SDL_EVENT_QUIT) Engine::SetIsRunning(false);
-
+			
+			if (event.type == SDL_EVENT_KEY_DOWN) {
+				if (event.key.scancode == SDL_SCANCODE_ESCAPE){
+				    if (gameState == EditorState::Playing) {
+				        gameState = EditorState::Editor;
+				        Logger::Log("State changed to Editor Mode");
+				    }
+				}
+			}
+			
             if (event.type == SDL_EVENT_MOUSE_MOTION) {
                 // Check if Right Mouse Button (SDL_BUTTON_RMASK) is pressed
                 if (SDL_GetMouseState(NULL, NULL) & SDL_BUTTON_RMASK) {
@@ -84,7 +96,7 @@ registry.hasRenderable[testEntity] = true;
             }
 
             if (event.type == SDL_EVENT_MOUSE_WHEEL) {
-                float zoomSpeed = 1.0f;
+                float zoomSpeed = 3.0f;
                 editorCamera.position += editorCamera.GetForward() * (event.wheel.y * zoomSpeed);
             }
 
@@ -156,10 +168,17 @@ registry.hasRenderable[testEntity] = true;
 							
 							// Calculate offset: Where does the ray hit the plane passing through the object?
 							float dist;
-							glm::vec3 planeNormal = -editorCamera.GetForwardVector(); // Plane faces camera
-							RayIntersectsPlane(ray, registry.transforms[selectedEntity].position, planeNormal, dist);
-							glm::vec3 worldPos = ray.origin + (ray.direction * dist);
-							dragOffset = registry.transforms[selectedEntity].position - worldPos;
+							glm::vec3 planeNormal = -editorCamera.GetForwardVector(); // Plane faces camera																				
+													
+							Ray ray = editorCamera.ScreenToWorldRay((float)event.button.x, (float)event.button.y, 
+                                           renderer.currentWindowWidth, renderer.currentWindowHeight);                                      																												
+							// Calculate the point on the plane at the moment of click
+						    RayIntersectsPlane(ray, initialEntityPosition, planeNormal, dist);	 
+							
+							// FIX: Assign to the global variable so MOUSE_MOTION can use it!
+						    initialMouseWorldPos = ray.origin + (ray.direction * dist);															
+							dragOffset = initialEntityPosition - initialMouseWorldPos;
+							
 						}
 					}
 				}
@@ -181,15 +200,16 @@ registry.hasRenderable[testEntity] = true;
 						// This is the raw world position the mouse is pointing at
 						glm::vec3 currentMouseWorldPos = ray.origin + (ray.direction * dist);
 						
-						// This is the starting point of the mouse when you first clicked
-						// Note: You need to capture 'initialMouseWorldPos' in your MouseDown event!
+						// Calculate how much the mouse moved from the starting click position
 						glm::vec3 mouseDelta = currentMouseWorldPos - initialMouseWorldPos;
-
-						// Apply movement only to unlocked axes
+						
+						// Apply movement: Start position + delta + the initial offset (to keep it from snapping)
+						glm::vec3 newPos = initialEntityPosition + mouseDelta;
+						
 						glm::vec3& pos = registry.transforms[selectedEntity].position;
-						if (!editor.IsLockedX()) pos.x = initialEntityPosition.x + mouseDelta.x;
-						if (!editor.IsLockedY()) pos.y = initialEntityPosition.y + mouseDelta.y;
-						if (!editor.IsLockedZ()) pos.z = initialEntityPosition.z + mouseDelta.z;
+						if (!editor.IsLockedX()) pos.x = newPos.x;
+						if (!editor.IsLockedY()) pos.y = newPos.y;
+						if (!editor.IsLockedZ()) pos.z = newPos.z;						
 					
 					}
 				}
@@ -241,18 +261,27 @@ registry.hasRenderable[testEntity] = true;
         // render objects closer to the camera appear in front of objects further away
         glEnable(GL_DEPTH_TEST);
         
+		// Clear and Render the scene (Used by both modes)
+		renderer.DrawClearScreen(0.45f, 0.81f, 0.97f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
 
-        myShader.use();
-        myShader.setMat4("view", editorCamera.GetViewMatrix());
-        myShader.setMat4("projection", editorCamera.GetProjectionMatrix(currentAspectRatio));
-                
-        RenderSystem(registry, myShader);
-        
-        editor.Draw(editorCamera, gridShader, currentAspectRatio);
-        // Render UI
-        editor.Begin();
-        editor.Draw(editorCamera);
-        editor.End();
+		myShader.use();
+		myShader.setMat4("view", editorCamera.GetViewMatrix());
+		myShader.setMat4("projection", editorCamera.GetProjectionMatrix(currentAspectRatio));
+		RenderSystem(registry, myShader);
+
+
+		// Only draw the grid when in Editor mode
+		if (gameState == EditorState::Editor) {		
+			editor.Draw(editorCamera, gridShader, currentAspectRatio);
+		}
+	
+		// 2. UI Rendering Logic (ALWAYS run this, regardless of state)
+		editor.Begin();
+		editor.Draw(editorCamera); // Handles the "Game View" window[cite: 17]
+		editor.End();
+			   
 
         GLenum err = glGetError();
         if (err != GL_NO_ERROR) {
