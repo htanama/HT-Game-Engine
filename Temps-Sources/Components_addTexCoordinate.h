@@ -13,21 +13,13 @@ struct Transform{
 struct TextureComponent {
     unsigned int textureID = 0; // OpenGL texture handle
     bool useTexture = false;    // Toggle for the shader
-	std::string path;			// Source asset path for save/load (e.g. "assets/tile.png")
+    std::string path;           // Source asset path (e.g. "assets/tile.png"), needed for save/load
 };
 
 struct CameraComponent {
     Camera camera;
     bool isPlayerCamera = false; // True if this camera should be used for player view
 };
-
-struct PhysicsComponent{
-	bool isEnabled = false;
-	bool isPhysicsWireframe = false; // Used to toggle visual debug
-	// TODO store a simplified convex hull mesh for performance
-
-};
-
 
 // The Renderable component tells the RenderSystem which mesh to draw for this entity, 
 // and what color to use if not using vertex colors.
@@ -58,5 +50,5 @@ struct LifetimeComponent {
 };
 
 struct NameComponent {
-    std::string name; // Entity name
+    std::string name;
 };

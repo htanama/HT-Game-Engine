@@ -17,7 +17,10 @@ extern Entity selectedEntity;
 extern Renderer renderer;
 Registry registry;
 
-extern EditorState gameState;
+EditorState gameState = EditorState::Editor;
+static glm::vec3 dragOffset(0.0f);
+static glm::vec3 initialEntityPosition(0.0f);
+static glm::vec3 initialMouseWorldPos(0.0f);
 bool isDragging = false;
 
 
@@ -42,12 +45,27 @@ int main(int argc, char* argv[]) {
     Logger::Log("Rendering Initialization Complete");
     
     Camera editorCamera;
-    float original_speed = 1.0f;
+    float original_speed = 7.0f;
     editorCamera.MovementSpeed = original_speed;
     editorCamera.position = glm::vec3(0.0f, 5.0f, 10.0f);
 
     SDL_Event event;
     Uint64 lastTime = SDL_GetTicks();          
+
+
+	// Create test entity
+Entity testEntity = registry.CreateEntity();
+registry.AddTransform(testEntity, { glm::vec3(-5.0f, 0.0f, 0.0f), glm::vec3(0.0f) });
+registry.AddVelocity(testEntity, glm::vec3(0.0f, -2.0f, 0.0f)); 
+registry.names[testEntity] = {"player"};
+
+registry.colors[testEntity].color = glm::vec3(1.0f, 1.0f, 1.0f); 
+registry.hasColor[testEntity] = true;
+registry.hasVelocity[testEntity] = true;
+std::shared_ptr<Mesh> meshInstance = MeshManager::CreateNewCubeMesh();
+registry.renderables[testEntity].mesh = meshInstance;
+registry.hasRenderable[testEntity] = true;
+
 	
     while (Engine::isRunning) {
         // Calculate deltaTime
@@ -58,7 +76,16 @@ int main(int argc, char* argv[]) {
         while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL3_ProcessEvent(&event);
             if (event.type == SDL_EVENT_QUIT) Engine::SetIsRunning(false);
-
+			
+			if (event.type == SDL_EVENT_KEY_DOWN) {
+				if (event.key.scancode == SDL_SCANCODE_ESCAPE){
+				    if (gameState == EditorState::Playing) {
+				        gameState = EditorState::Editor;
+				        Logger::Log("State changed to Editor Mode");
+				    }
+				}
+			}
+			
             if (event.type == SDL_EVENT_MOUSE_MOTION) {
                 // Check if Right Mouse Button (SDL_BUTTON_RMASK) is pressed
                 if (SDL_GetMouseState(NULL, NULL) & SDL_BUTTON_RMASK) {
@@ -69,7 +96,7 @@ int main(int argc, char* argv[]) {
             }
 
             if (event.type == SDL_EVENT_MOUSE_WHEEL) {
-                float zoomSpeed = 1.0f;
+                float zoomSpeed = 3.0f;
                 editorCamera.position += editorCamera.GetForward() * (event.wheel.y * zoomSpeed);
             }
 
@@ -86,47 +113,114 @@ int main(int argc, char* argv[]) {
             }
 		
 			// Perform raycasting to select object on the scene
+			//if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+			//	if(event.button.button == SDL_BUTTON_LEFT) {
+			//		ImGuiIO& io = ImGui::GetIO();
+			//		if (!io.WantCaptureMouse) { // perform raycast if ImGui does not need the mouse
+			//			float mx = (float)event.button.x;
+			//			float my = (float)event.button.y;
+			//		
+			//			Ray ray = editorCamera.ScreenToWorldRay(mx, my, renderer.currentWindowWidth, renderer.currentWindowHeight);
+			//			selectedEntity = PickEntity(ray, registry);
+			//		
+			//			if (selectedEntity != -1) {
+			//				isDragging = true; // grab object
+			//				std::cout << "You clicked entity: " << selectedEntity << std::endl;
+			//			}
+			//		}
+			//	}
+			//}
+
+			//if (event.type == SDL_EVENT_MOUSE_MOTION) {
+			//	if (isDragging && selectedEntity != -1) {
+			//		// Move the entity based on mouse movement
+			//		// We project the mouse position onto a plane at the object's current height (y)
+			//		float height = registry.transforms[selectedEntity].position.y;
+			//		
+			//		Ray ray = editorCamera.ScreenToWorldRay((float)event.motion.x, (float)event.motion.y, 
+			//												renderer.currentWindowWidth, renderer.currentWindowHeight);
+			//		
+			//		// This math finds where the ray hits the horizontal plane of the object
+			//		float t = (height - ray.origin.y) / ray.direction.y;
+			//		glm::vec3 newPos = ray.origin + (ray.direction * t);
+			//		
+			//		registry.transforms[selectedEntity].position = newPos;
+			//	}
+			//}
+			
+
+			// Mouse Down: Calculate offset to prevent snapping
 			if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
 				if(event.button.button == SDL_BUTTON_LEFT) {
 					ImGuiIO& io = ImGui::GetIO();
-					if (!io.WantCaptureMouse) { // perform raycast if ImGui does not need the mouse
+					if (!io.WantCaptureMouse) {
 						float mx = (float)event.button.x;
 						float my = (float)event.button.y;
-					
+
 						Ray ray = editorCamera.ScreenToWorldRay(mx, my, renderer.currentWindowWidth, renderer.currentWindowHeight);
 						selectedEntity = PickEntity(ray, registry);
-					
+
 						if (selectedEntity != -1) {
-							isDragging = true; // grab object
-							std::cout << "You clicked entity: " << selectedEntity << std::endl;
+							isDragging = true;
+							
+							// Store the starting state
+						    initialEntityPosition = registry.transforms[selectedEntity].position;
+							
+							// Calculate offset: Where does the ray hit the plane passing through the object?
+							float dist;
+							glm::vec3 planeNormal = -editorCamera.GetForwardVector(); // Plane faces camera																				
+													
+							Ray ray = editorCamera.ScreenToWorldRay((float)event.button.x, (float)event.button.y, 
+                                           renderer.currentWindowWidth, renderer.currentWindowHeight);                                      																												
+							// Calculate the point on the plane at the moment of click
+						    RayIntersectsPlane(ray, initialEntityPosition, planeNormal, dist);	 
+							
+							// FIX: Assign to the global variable so MOUSE_MOTION can use it!
+						    initialMouseWorldPos = ray.origin + (ray.direction * dist);															
+							dragOffset = initialEntityPosition - initialMouseWorldPos;
+							
 						}
 					}
 				}
 			}
 
+			// Mouse Motion: Use the same camera-facing plane logic
 			if (event.type == SDL_EVENT_MOUSE_MOTION) {
-				if (isDragging && selectedEntity != -1) {
-					// Move the entity based on mouse movement
-					// We project the mouse position onto a plane at the object's current height (y)
-					float height = registry.transforms[selectedEntity].position.y;
+				// Check WantCaptureMouse here too, so we don't move objects if over a UI window
+				ImGuiIO& io = ImGui::GetIO();
+				if (isDragging && selectedEntity != -1 && !io.WantCaptureMouse) {
+					Ray ray = editorCamera.ScreenToWorldRay((float)event.motion.x, (float)event.motion.y,
+														   renderer.currentWindowWidth, renderer.currentWindowHeight);
 					
-					Ray ray = editorCamera.ScreenToWorldRay((float)event.motion.x, (float)event.motion.y, 
-															renderer.currentWindowWidth, renderer.currentWindowHeight);
+					float dist;
+					glm::vec3 planeNormal = -editorCamera.GetForwardVector();
+
+					// We use the initial position as the base for the plane to prevent "snapping"
+					if (RayIntersectsPlane(ray, initialEntityPosition, planeNormal, dist)) {			    
+						// This is the raw world position the mouse is pointing at
+						glm::vec3 currentMouseWorldPos = ray.origin + (ray.direction * dist);
+						
+						// Calculate how much the mouse moved from the starting click position
+						glm::vec3 mouseDelta = currentMouseWorldPos - initialMouseWorldPos;
+						
+						// Apply movement: Start position + delta + the initial offset (to keep it from snapping)
+						glm::vec3 newPos = initialEntityPosition + mouseDelta;
+						
+						glm::vec3& pos = registry.transforms[selectedEntity].position;
+						if (!editor.IsLockedX()) pos.x = newPos.x;
+						if (!editor.IsLockedY()) pos.y = newPos.y;
+						if (!editor.IsLockedZ()) pos.z = newPos.z;						
 					
-					// This math finds where the ray hits the horizontal plane of the object
-					float t = (height - ray.origin.y) / ray.direction.y;
-					glm::vec3 newPos = ray.origin + (ray.direction * t);
-					
-					registry.transforms[selectedEntity].position = newPos;
+					}
 				}
-			}
+			}	
 
 			if (event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
 				if(event.button.button == SDL_BUTTON_LEFT){
 					isDragging = false; // Release the object
 				}
-			}
-
+			}	
+			
 
 		}
 			              
@@ -144,12 +238,15 @@ int main(int argc, char* argv[]) {
         }
         
         if (state[SDL_SCANCODE_LSHIFT]) 
-            editorCamera.MovementSpeed = 5.0f;
+            editorCamera.MovementSpeed = original_speed + 4.0f;
         else {
             editorCamera.MovementSpeed = original_speed;
-        }
-
-
+        }	
+		
+		if (gameState == EditorState::Playing){
+				MovementSystem(registry, deltaTime);
+		}
+	
         float currentAspectRatio = (float)renderer.currentWindowWidth / renderer.currentWindowHeight;        
 
         // Render Game Scene
@@ -164,18 +261,27 @@ int main(int argc, char* argv[]) {
         // render objects closer to the camera appear in front of objects further away
         glEnable(GL_DEPTH_TEST);
         
+		// Clear and Render the scene (Used by both modes)
+		renderer.DrawClearScreen(0.45f, 0.81f, 0.97f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
 
-        myShader.use();
-        myShader.setMat4("view", editorCamera.GetViewMatrix());
-        myShader.setMat4("projection", editorCamera.GetProjectionMatrix(currentAspectRatio));
-                
-        RenderSystem(registry, myShader);
-        
-        editor.Draw(editorCamera, gridShader, currentAspectRatio);
-        // Render UI
-        editor.Begin();
-        editor.Draw(editorCamera);
-        editor.End();
+		myShader.use();
+		myShader.setMat4("view", editorCamera.GetViewMatrix());
+		myShader.setMat4("projection", editorCamera.GetProjectionMatrix(currentAspectRatio));
+		RenderSystem(registry, myShader);
+
+
+		// Only draw the grid when in Editor mode
+		if (gameState == EditorState::Editor) {		
+			editor.Draw(editorCamera, gridShader, currentAspectRatio);
+		}
+	
+		// 2. UI Rendering Logic (ALWAYS run this, regardless of state)
+		editor.Begin();
+		editor.Draw(editorCamera); // Handles the "Game View" window[cite: 17]
+		editor.End();
+			   
 
         GLenum err = glGetError();
         if (err != GL_NO_ERROR) {

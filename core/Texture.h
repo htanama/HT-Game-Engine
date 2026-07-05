@@ -23,12 +23,18 @@ public:
     
     SDL_DestroySurface(surface); // Clean up CPU memory
 }
-  ~Texture();
-
-  void Bind(unsigned int slot = 0) const;
-  unsigned int GetID() const { return m_RendererID; }
+	
+	Texture::~Texture() {
+    	if (m_RendererID != 0) {
+        	glDeleteTextures(1, &m_RendererID);
+        	std::cout << "Texture resources freed from GPU." << std::endl;
+    	}
+	}
+  	
+	void Bind(unsigned int slot = 0) const;
+ 	unsigned int GetID() const { return m_RendererID; }
 
 private:
-  unsigned int m_RendererID;
-  std::string m_FilePath;
+	unsigned int m_RendererID;
+	std::string m_FilePath;
 };

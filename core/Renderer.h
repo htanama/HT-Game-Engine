@@ -21,9 +21,9 @@ public:
 
     inline int GetWindowHeight() const{
         return WINDOW_HEIGHT;
-    }
-    
-    void UnbindFBO() { 
+    }   
+
+    void UnbindFramebuffer() { 
         glBindFramebuffer(GL_FRAMEBUFFER, 0); 
     }
 
@@ -31,9 +31,13 @@ public:
         glClearColor(red, green, blue, alpha);
         glClear(GL_COLOR_BUFFER_BIT);
     }
-
+    
+    void WindowResize(int width, int height){
+        if(width <= 0 || height <= 0) return; // prevent invalid sizes        
+    }
+    
     // Drawing a simple non-indexed object (like a single triangle)
- /*   void Draw(const Mesh& mesh, const Shader& shader) {
+ 	/* void Draw(const Mesh& mesh, const Shader& shader) {
         shader.use();
         glBindVertexArray(mesh.Vao);
         glDrawArrays(GL_TRIANGLES, 0,(GLsizei)mesh.vertices.size()); 
@@ -50,7 +54,4 @@ public:
         glBindVertexArray(0);
     }*/
 
-    void WindowResize(int width, int height){
-        if(width <= 0 || height <= 0) return; // prevent invalid sizes        
-    }
 };

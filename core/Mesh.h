@@ -158,10 +158,11 @@ public:
 
     // Cleanup GPU memory when Mesh object goes out of scope
     ~Mesh() {
-        glDeleteVertexArrays(1, &m_VAO);
-        glDeleteBuffers(1, &m_VBO);
-        glDeleteBuffers(1, &m_EBO);
-        std::cout << "Mesh resources freed from GPU." << std::endl;
+		// Only attempt to delete if the handles are valid
+		if (m_VAO != 0) glDeleteVertexArrays(1, &m_VAO);
+		if (m_VBO != 0) glDeleteBuffers(1, &m_VBO);
+		if (m_EBO != 0) glDeleteBuffers(1, &m_EBO);        
+       std::cout << "Mesh resources freed from GPU." << std::endl;
     }
 
     unsigned int GetVIO() const {

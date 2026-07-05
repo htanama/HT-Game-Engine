@@ -1,5 +1,6 @@
 #pragma once
 #include "core/ECS.h" // Your Registry definitions
+#include "utility/MeshManager.h" // Needed for MeshManager::LoadTexture on scene load
 #include <fstream>
 #include "json.hpp"
 
@@ -61,29 +62,21 @@ public:
                 entity["name"] = reg.names[i].name;
             }
             
-            
-            if (reg.hasPhysics[i]) { // Ensure you have a check for the physics component
-				entity["physics"] = {
-					{"isEnabled", reg.physics[i].isEnabled}
-				};
-			}
-            
             if (reg.hasRenderable[i]) { 
                 entity["meshName"] = "cube"; 
                 // for the future to add object using file path .obj 
                 //entity["meshPath"] = reg.renderables[i].meshPath;
             }
-            
-			// Save texture asset path so it can be reloaded from disk later.
-			// We deliberatly do NOT save textureID -- it's a runtime GPU handle
-			// and gets regenerated fresh by MeshManager::LoadTexture() on load.
-			if(reg.hasTexture[i]){
-				entity["texture"] = {
-					{"path", reg.textures[i].path},
-					{"useTexture", reg.textures[i].useTexture}
-				};
 
-			}
+            // Save texture asset path so it can be reloaded from disk later.
+            // We deliberately do NOT save textureID -- it's a runtime GPU handle
+            // and gets regenerated fresh by MeshManager::LoadTexture() on load.
+            if (reg.hasTexture[i]) {
+                entity["texture"] = {
+                    {"path", reg.textures[i].path},
+                    {"useTexture", reg.textures[i].useTexture}
+                };
+            }
 
             scene["entities"].push_back(entity);
         }
@@ -109,50 +102,46 @@ public:
         reg.hasName.clear();
         reg.renderables.clear();
         reg.hasRenderable.clear();
+        reg.textures.clear();
+        reg.hasTexture.clear();
         // (Add any other components you have)
 
         // 2. Load entities from JSON
-		// auto or nlohmann::json&
-        for (nlohmann::json& entityData : scene["entities"]) {
-            Entity entity = reg.CreateEntity(); // This creates a new empty index
+        for (auto& entityData : scene["entities"]) {
+            Entity e = reg.CreateEntity(); // This creates a new empty index
            
             // Load Transform if it exists
             if (entityData.contains("transform")) {
-                reg.transforms[entity].position.x = entityData["transform"]["x"];
-                reg.transforms[entity].position.y = entityData["transform"]["y"];
-                reg.transforms[entity].position.z = entityData["transform"]["z"];
-                reg.hasTransform[entity] = true;
+                reg.transforms[e].position.x = entityData["transform"]["x"];
+                reg.transforms[e].position.y = entityData["transform"]["y"];
+                reg.transforms[e].position.z = entityData["transform"]["z"];
+                reg.hasTransform[e] = true;
             }
 
             if (entityData.contains("rotation")) {
-                reg.transforms[entity].rotation.x = entityData["rotation"]["x"];
-                reg.transforms[entity].rotation.y = entityData["rotation"]["y"];
-                reg.transforms[entity].rotation.z = entityData["rotation"]["z"];
+                reg.transforms[e].rotation.x = entityData["rotation"]["x"];
+                reg.transforms[e].rotation.y = entityData["rotation"]["y"];
+                reg.transforms[e].rotation.z = entityData["rotation"]["z"];
             }
 
             if (entityData.contains("scale")) {
-                reg.transforms[entity].scale.x = entityData["scale"]["x"];
-                reg.transforms[entity].scale.y = entityData["scale"]["y"];
-                reg.transforms[entity].scale.z = entityData["scale"]["z"];
+                reg.transforms[e].scale.x = entityData["scale"]["x"];
+                reg.transforms[e].scale.y = entityData["scale"]["y"];
+                reg.transforms[e].scale.z = entityData["scale"]["z"];
             }
            
             // Load Color if it exists
             if (entityData.contains("color")) {
-                reg.colors[entity].color.x = entityData["color"]["r"];
-                reg.colors[entity].color.y = entityData["color"]["g"];
-                reg.colors[entity].color.z = entityData["color"]["b"];
-                reg.hasColor[entity] = true;
+                reg.colors[e].color.x = entityData["color"]["r"];
+                reg.colors[e].color.y = entityData["color"]["g"];
+                reg.colors[e].color.z = entityData["color"]["b"];
+                reg.hasColor[e] = true;
             }
-
-			if (entityData.contains("physics")) {
-				reg.physics[entity].isEnabled = entityData["physics"]["isEnabled"];
-				reg.hasPhysics[entity] = true; // Mark component as active
-			}
 
             // Load Name if it exists
             if (entityData.contains("name")) {
-                reg.names[entity].name = entityData["name"];
-                reg.hasName[entity] = true;
+                reg.names[e].name = entityData["name"];
+                reg.hasName[e] = true;
             }
 
             if (entityData.contains("meshName")) {
@@ -160,32 +149,35 @@ public:
                 
                 // Re-link the pointer!
                 if (meshName == "cube") {
-					// MeshManager::CreateNewCubeMesh()already builds vertices via 
-					// GetCubeDataWithTexture(), which backes UV/texCoords into the
-					// mesh itself -- so texture coordinates come back automatically,
-					// no need to serialize them per-entity
-                    reg.renderables[entity].mesh = MeshManager::CreateNewCubeMesh(); // Or your cache/library
+                    // MeshManager::CreateNewCubeMesh() already builds vertices via
+                    // GetCubeDataWithTexture(), which bakes UV/texCoords into the
+                    // mesh itself -- so texture coordinates come back automatically,
+                    // no need to serialize them per-entity.
+                    reg.renderables[e].mesh = MeshManager::CreateNewCubeMesh(); // Or your cache/library
                 }
-                reg.hasRenderable[entity] = true;
+                reg.hasRenderable[e] = true;
             }
 
-			// Reload the texture from disk using the saved asset path.
-			if(entityData.contains("texture")){
-				TextureComponent textureComponent;
-				textureComponent.path = entityData["texture"]["path"];
-				textureComponent.useTexture = entityData["texture"]["useTexture"];
+            // Reload the texture from disk using the saved asset path.
+            if (entityData.contains("texture")) {
+                TextureComponent tc;
+                tc.path = entityData["texture"]["path"];
+                tc.useTexture = entityData["texture"]["useTexture"];
 
-				if(!textureComponent.path.empty()){
-					textureComponent.textureID = MeshManager::LoadTexture(textureComponent.path);
-				}
+                if (!tc.path.empty()) {
+                    tc.textureID = MeshManager::LoadTexture(tc.path);
+                }
 
-				if(textureComponent.textureID == 0){
-					textureComponent.useTexture = false;
-				}
+                // If the texture failed to load (e.g. missing file), don't let
+                // the shader try to bind texture handle 0 as if it were valid.
+                if (tc.textureID == 0) {
+                    tc.useTexture = false;
+                }
 
-				reg.AddTexture(entity, textureComponent);
-			
-			}
+                // AddTexture() also sets hasTexture[e] = true and forces
+                // useTexture = true when textureID != 0.
+                reg.AddTexture(e, tc);
+            }
 
         }
     }

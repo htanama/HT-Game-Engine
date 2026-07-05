@@ -2,8 +2,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-enum class EditorState { Editor, Playing };
-
 // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
 enum Camera_Movement {
     FORWARD,
@@ -116,7 +114,15 @@ public:
         return glm::normalize(forward);
     }
 
-
+	glm::vec3 GetForwardVector() const {
+		return glm::vec3(
+		    cos(glm::radians(yaw)) * cos(glm::radians(pitch)),
+		    sin(glm::radians(pitch)),
+		    sin(glm::radians(yaw)) * cos(glm::radians(pitch))
+		);
+	}
+	
+	
 	Ray ScreenToWorldRay(float mouseX, float mouseY, int screenWidth, int screenHeight) const {
 		// Calculate aspect ratio
 		float aspect = (float)screenWidth / (float)screenHeight;

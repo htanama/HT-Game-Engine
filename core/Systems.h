@@ -2,14 +2,36 @@
 #include "ECS.h"
 #include "Shader.h"
 
+
+constexpr float EPSILON = 1e-6f;
+
 // A simple AABB structure for object
 struct AABB{
 	glm::vec3 min;
 	glm::vec3 max;
 };
 
+// Returns true if two AABBs are colliding
+bool CheckCollision(Registry& reg, size_t a, size_t b) {
+    if (!reg.hasTransform[a] || !reg.hasTransform[b]) return false;
+
+    glm::vec3 sizeA = reg.transforms[a].scale * 0.5f;
+    glm::vec3 sizeB = reg.transforms[b].scale * 0.5f;
+
+    glm::vec3 posA = reg.transforms[a].position;
+    glm::vec3 posB = reg.transforms[b].position;
+
+    bool collisionX = abs(posA.x - posB.x) < (sizeA.x + sizeB.x);
+    bool collisionY = abs(posA.y - posB.y) < (sizeA.y + sizeB.y);
+    bool collisionZ = abs(posA.z - posB.z) < (sizeA.z + sizeB.z);
+
+    return (collisionX && collisionY && collisionZ);
+}
+
+
+
 // Return true if the ray hits the AABB
-bool RayIntersectsAABB(const Ray& ray, glm::vec3 pos, glm::vec3 scale, float& distance) {
+bool RayIntersectsAABB(const Ray& ray, glm::vec3 pos, glm::vec3 scale, float& hitDistance) {
     glm::vec3 min = pos - (scale * 0.5f);
     glm::vec3 max = pos + (scale * 0.5f);
     
@@ -25,8 +47,24 @@ bool RayIntersectsAABB(const Ray& ray, glm::vec3 pos, glm::vec3 scale, float& di
     float t_far = glm::min(glm::min(tmax.x, tmax.y), tmax.z);
     
     if (t_far < 0 || t_near > t_far) return false;
-    distance = t_near;
+    hitDistance = t_near;
     return true;
+}
+
+// Returns true if the ray intersects the plane, and sets 'distance' to the hit point
+bool RayIntersectsPlane(const Ray& ray, glm::vec3 planePoint, glm::vec3 planeNormal, float& hitDistance) {
+    float denom = glm::dot(planeNormal, ray.direction);
+    
+    // Check if the ray is parallel to the plane (avoid division by zero)
+    if (std::abs(denom) > EPSILON) {
+        glm::vec3 originToPlane = planePoint - ray.origin;
+        hitDistance = glm::dot(originToPlane, planeNormal) / denom;
+        
+        // If distance is negative, the plane is behind the ray origin
+        return (hitDistance >= 0);
+    }
+    
+    return false;
 }
 
 Entity PickEntity(const Ray& ray, Registry& reg) {
@@ -77,18 +115,51 @@ void RequestDeleteEntity(Registry& registry, Entity entityID) {
 }
 
 void MovementSystem(Registry& reg, float deltaTime) {
-    // Iterate through the vector using an index to get the Entity ID
-    for (size_t entity = 0; entity < reg.hasTransform.size(); ++entity) {
+    // Shared static flag to track state across frames for logging
+    static bool wasColliding = false;
+
+    for (size_t e = 0; e < reg.GetEntityCount(); e++) {
+        // REMOVED: Name-check for "player". Now processes ANY entity with Transform and Velocity.
+        if (!reg.hasVelocity[e] || !reg.hasTransform[e]) continue;
+
+        glm::vec3 nextPos = reg.transforms[e].position + (reg.velocities[e].value * deltaTime);
+        bool isColliding = false;
+
+        // Store original position to revert if we hit something
+        glm::vec3 originalPos = reg.transforms[e].position;
         
-        // Ensure the entity actually has both a Transform and a Velocity component
-        if (reg.hasTransform[entity] && reg.hasVelocity[entity]) {
+        // Temporarily set position to check collision
+        reg.transforms[e].position = nextPos;
+
+        for (size_t other = 0; other < reg.GetEntityCount(); other++) {
+            if (e == other) continue; 
             
-            // Apply the velocity: Position += Velocity * DeltaTime
-            reg.transforms[entity].position += reg.velocities[entity].value * deltaTime;
+            // Only check collision if 'other' has physics enabled
+            if (reg.hasPhysics[other] && reg.physics[other].isEnabled) { 
+                if (CheckCollision(reg, e, other)) {
+                    isColliding = true;
+                    break;
+                }
+            }
+        }
+
+        if (isColliding) {
+            // Log only when entering the collision state
+            if (!wasColliding) {
+                Logger::Log("Collision detected! Movement blocked.");
+                wasColliding = true;
+            }
+            
+            // Revert position and clear velocity on impact
+            reg.transforms[e].position = originalPos;
+            reg.velocities[e].value = glm::vec3(0.0f); 
+        } else {
+            // Reset the flag and commit the movement
+            wasColliding = false;
+            reg.transforms[e].position = nextPos;
         }
     }
 }
-
 
 void LifetimeSystem(Registry& reg, float deltaTime) {
     for (size_t entity = 0; entity < reg.hasLifetime.size(); ++entity) {
@@ -138,8 +209,8 @@ void CameraSystem(Registry& reg, Entity playerID, Camera& cam) {
     }
 }
 
-void RenderSystem(Registry& reg, Shader& shader) { 
-
+//void RenderSystem(Registry& reg, Shader& shader) { 
+void RenderSystem(Registry& reg, Shader& shader, Entity selectedEntity = (Entity)-1) {
     for (size_t e = 0; e < reg.renderables.size(); ++e)
     {
         if (!reg.hasRenderable[e]) continue; // Skip if no mesh to draw
@@ -148,11 +219,9 @@ void RenderSystem(Registry& reg, Shader& shader) {
         // Set the model matrix using your transform component (if it exists)
         glm::mat4 model = glm::mat4(1.0f); // Local scope is safer
 
-        auto& renderable = reg.renderables[e];
-
         // Build the model matrix once using the transform
         if (reg.hasTransform[e]) {
-            auto& t = reg.transforms[e];
+            Transform& t = reg.transforms[e];
             model = glm::translate(model, t.position);
             model = glm::rotate(model, glm::radians(t.rotation.x), glm::vec3(1, 0, 0));
             model = glm::rotate(model, glm::radians(t.rotation.y), glm::vec3(0, 1, 0));
@@ -163,17 +232,6 @@ void RenderSystem(Registry& reg, Shader& shader) {
         // Recalculate the model with the updated transformation data
         shader.setMat4("model", model);
         
-    //    if (reg.hasTexture[e] && reg.textures[e].useTexture) {
-    //        shader.setBool("useTexture", true);
-    //        glActiveTexture(GL_TEXTURE0);
-    //        glBindTexture(GL_TEXTURE_2D, reg.textures[e].textureID);
-    //        
-    //        shader.setInt("ourTexture", 0); // Must match the uniform name in your fragment shader
-    //    } else {
-	//		// Crucial: Tell the shader to ignore the texture and use the solid color
-	//		shader.setBool("useTexture", false);
-	//	}
-      
 		// Texture & Color State Logic
         bool hasTex = reg.hasTexture[e] && reg.textures[e].useTexture;
         shader.setBool("useTexture", hasTex);
@@ -185,6 +243,7 @@ void RenderSystem(Registry& reg, Shader& shader) {
             shader.setInt("ourTexture", 0);
         }
   
+  	        
         // Handle Color logic
 		if (reg.hasColor[e]) {
 			shader.setVec3("objectColor", reg.colors[e].color);
@@ -193,12 +252,11 @@ void RenderSystem(Registry& reg, Shader& shader) {
 			shader.setVec3("objectColor", glm::vec3(1.0f)); 
 		}
 
-
         if (reg.hasColor[e]) {
             shader.setVec3("objectColor", reg.colors[e].color);
-        }
-
-        if (renderable.mesh != nullptr) {
+        }       
+         
+        if (reg.renderables[e].mesh != nullptr) {
             shader.setBool("isVertexColor", false);
 
             if (reg.hasColor[e]) {
@@ -219,7 +277,7 @@ void RenderSystem(Registry& reg, Shader& shader) {
             else {
                 shader.setVec3("objectColor", glm::vec3(1.0f)); // Default white
             }
-
+                                    
             // Check the entity's specific wireframe flag before drawing
             if (reg.renderables[e].isWireframe) {
                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -240,3 +298,71 @@ void RenderSystem(Registry& reg, Shader& shader) {
     }
 }
 
+
+//void RenderSystem(Registry& reg, Shader& shader) { 
+//    for (size_t e = 0; e < reg.renderables.size(); ++e) {
+//        if (!reg.hasRenderable[e]) continue;
+//
+//        // Iterate through every possible entity ID
+//        // Set the model matrix using your transform component (if it exists)
+//        glm::mat4 model = glm::mat4(1.0f);
+//        
+//        // Build the model matrix once using the transform
+//        if (reg.hasTransform[e]) {
+//            Transform& t = reg.transforms[e];
+//            model = glm::translate(model, t.position);
+//            model = glm::rotate(model, glm::radians(t.rotation.x), glm::vec3(1, 0, 0));
+//            model = glm::rotate(model, glm::radians(t.rotation.y), glm::vec3(0, 1, 0));
+//            model = glm::rotate(model, glm::radians(t.rotation.z), glm::vec3(0, 0, 1));
+//            model = glm::scale(model, t.scale);
+//        }
+//        
+//        // Recalculate the model with the updated transformation data
+//        shader.setMat4("model", model);
+//        
+//        // 2. Texture & Color State
+//        bool hasTex = reg.hasTexture[e] && reg.textures[e].useTexture;
+//        shader.setBool("useTexture", hasTex);
+//        shader.setBool("isVertexColor", false); // Explicitly disable vertex color
+//
+//        if (hasTex) {
+//            glActiveTexture(GL_TEXTURE0);
+//            glBindTexture(GL_TEXTURE_2D, reg.textures[e].textureID);
+//            shader.setInt("ourTexture", 0);
+//        }    
+//
+//        // Handle Color logic
+//        if (reg.hasColor[e]) {
+//			shader.setVec3("objectColor", reg.colors[e].color);
+//   	    }else {
+//          	// If no color component exists, force white so it isn't black
+//          	shader.setVec3("objectColor", glm::vec3(1.0f));
+//        }
+//
+//
+//        // 3. Render Mesh
+//        if (reg.renderables[e].mesh != nullptr) {
+//            
+//            // Check if this entity needs wireframe mode for either Mesh or Physics
+//            bool showMeshWire = reg.renderables[e].isWireframe;
+//            bool showPhysWire = (reg.hasPhysics[e] && reg.physics[e].isPhysicsWireframe);
+//
+//            if (showMeshWire || showPhysWire) {
+//                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+//            } else {
+//                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+//            }
+//
+//            reg.renderables[e].mesh->draw();
+//            
+//            // Reset to FILL so other UI/systems don't get stuck in line mode
+//            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+//        }    
+//
+//        // 4. Debug GL Errors
+//        GLenum err = glGetError();
+//        if (err != GL_NO_ERROR) {
+//            std::cout << "OpenGL Error after draw: " << err << std::endl;
+//        }
+//    }
+//}
