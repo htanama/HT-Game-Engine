@@ -174,12 +174,10 @@ public:
 
 	}
 	
-
     void Draw(Camera &editorCamera) 
     {
         // Dynamically get the size of the current UI window, not the whole application
         ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-
        
         // 1. GLOBAL MENU BAR (Must be outside the DockSpace Host)
         if (ImGui::BeginMainMenuBar()) {
@@ -205,8 +203,14 @@ public:
 					Logger::Log("New Scene created. All entities and meshes cleared."); 
 
 				}
+                if (ImGui::MenuItem("Autosave", "Ctrl+S")) { 
+                    std::string filename = "autosave_file.scene";
+					SceneSerializer::SaveScene(registry, filename);
+                    Logger::Log("Scene saved to: " + filename);
+				}               	
+
         
-	        	if (ImGui::MenuItem("Save Scene", "Ctrl+S")) {   
+	        	if (ImGui::MenuItem("Save Scene As..", "Ctrl+S")) {   
 					// Only open the dialog here. Do not save yet!
 					SDL_ShowSaveFileDialog(SaveSceneCallback, this, m_window, nullptr, 0, nullptr);
 				}               	
@@ -385,6 +389,10 @@ public:
                             renamingEntity = (Entity)index;
                             strncpy(nameBuffer, entityName.c_str(), sizeof(nameBuffer));
                         }
+                        if (ImGui::MenuItem("Copy")) {
+                            registry.CopyEntity((Entity)index);
+                            Logger::Log("Entity copied.");
+                        }
                         if (ImGui::MenuItem("Delete")) {
                             entityToDelete = (Entity)index; // Set delete target
                         }
@@ -436,13 +444,7 @@ public:
 					}
 				}
 				
-				if (!registry.hasRotation[selectedEntity]) {
-					if (ImGui::Selectable("Rotation")) {
-						registry.hasRotation[selectedEntity] = true;
-						registry.rotations[selectedEntity] = { 0.0f, glm::vec3(0,1,0), 0.0f };
-					}
-				}
-
+                // using this for projectile to have certain life time and then remove
 				if (!registry.hasLifetime[selectedEntity]) {
 					if (ImGui::Selectable("Lifetime")) {
 						registry.hasLifetime[selectedEntity] = true;
@@ -649,7 +651,20 @@ public:
 					}
 				}
 
-			
+                // Adding the LifeTimeComponent
+                if (registry.hasLifetime[selectedEntity]) {
+                    if (ImGui::CollapsingHeader("Lifetime Component", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        // This formats the float to show two decimal places
+                        ImGui::Text("Remaining Time: %.2f s", registry.lifetimes[selectedEntity].remainingTime);
+                        
+                        // DragFloat allows you to manually adjust the time if needed
+                        ImGui::DragFloat("##lifetime", &registry.lifetimes[selectedEntity].remainingTime, 0.1f, 0.0f, 100.0f);
+                        
+                        if (ImGui::Button("Remove Lifetime")) {
+                            registry.hasLifetime[selectedEntity] = false;
+                        }
+                    }
+                }
 	
             }          
         ImGui::End();
