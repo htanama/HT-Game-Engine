@@ -457,13 +457,16 @@ public:
                     if (!registry.hasMesh[selectedEntity]) {
                         // Create the component object
                         MeshComponent newComp(MeshType::Cube);
-                        
+                        registry.hasMesh[selectedEntity] = true;                        
                         // Call your centralized function which handles resizing, 
                         // flag setting, and MeshManager registration
                         registry.AddMeshComponent(selectedEntity, newComp);
+                        
+                        // ADD THIS LINE: It forces the popup to close, 
+                        // allowing the condition in the next frame to be false.
+                        ImGui::CloseCurrentPopup();
                     }
                 }
-
 				ImGui::EndPopup();
 			}
 	   

@@ -85,6 +85,19 @@ public:
 
 			}
 
+            if (reg.hasRenderable[i]) { 
+                // Assuming you have a MeshComponent that tracks the type
+                if (reg.hasMesh[i]) {
+                    if (reg.meshes[i].type == MeshType::Sphere) {
+                        entity["meshName"] = "sphere";
+                    } else {
+                        entity["meshName"] = "cube";
+                    }
+                } else {
+                    entity["meshName"] = "cube"; // Default fallback
+                }
+            }
+
             scene["entities"].push_back(entity);
         }
 
@@ -167,6 +180,21 @@ public:
                     reg.renderables[entity].mesh = MeshManager::CreateNewCubeMesh(); // Or your cache/library
                 }
                 reg.hasRenderable[entity] = true;
+            }
+
+            if (entityData.contains("meshName")) {
+                std::string meshName = entityData["meshName"];
+                
+                // Re-link the pointer based on the saved name
+                if (meshName == "sphere") {
+                    reg.renderables[entity].mesh = MeshManager::CreateMeshFromType(MeshType::Sphere);
+                    reg.meshes[entity].type = MeshType::Sphere; // Ensure the component is synced
+                } else {
+                    reg.renderables[entity].mesh = MeshManager::CreateMeshFromType(MeshType::Cube);
+                    reg.meshes[entity].type = MeshType::Cube;
+                }
+                reg.hasRenderable[entity] = true;
+                reg.hasMesh[entity] = true;
             }
 
 			// Reload the texture from disk using the saved asset path.

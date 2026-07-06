@@ -194,6 +194,7 @@ public:
         if (!meshes[e].mesh) {
             meshes[e].mesh = MeshManager::CreateMeshFromType(mc.type);
         }
+        hasMesh[e] = true;
     }
 
     size_t GetEntityCount() const {
