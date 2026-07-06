@@ -104,7 +104,6 @@ void RequestDeleteEntity(Registry& registry, Entity entityID) {
         registry.hasVelocity[entityID] = false;
         registry.hasName[entityID] = false;
         registry.hasColor[entityID] = false;
-        registry.hasRotation[entityID] = false;
         registry.hasLifetime[entityID] = false;
         registry.hasTexture[entityID] = false; 
 
@@ -161,20 +160,33 @@ void MovementSystem(Registry& reg, float deltaTime) {
     }
 }
 
-void LifetimeSystem(Registry& reg, float deltaTime) {
-    for (size_t entity = 0; entity < reg.hasLifetime.size(); ++entity) {
-        if (reg.hasLifetime[entity]) {
-            reg.lifetimes[entity].remainingTime -= deltaTime;
-            if (reg.lifetimes[entity].remainingTime <= 0.0f) {
-                // For simplicity, we just mark the entity as not having a Transform and Renderable anymore
-                reg.hasTransform[entity] = false;
-                reg.hasRenderable[entity] = false;
-                reg.hasVelocity[entity] = false;
-                reg.hasColor[entity] = false;
-                reg.hasRotation[entity] = false;
-                reg.hasLifetime[entity] = false;                                    
+void LifetimeSystem(Registry& registry, float deltaTime) {
+    std::vector<Entity> toDelete;
+
+    // Identify expired entities
+    for (Entity i = 0; i < registry.hasLifetime.size(); ++i) {
+        if (registry.hasLifetime[i]) {
+            registry.lifetimes[i].remainingTime -= deltaTime;
+            
+            // If time is up, flag for deletion
+            if (registry.lifetimes[i].remainingTime <= 0.0f) {
+                toDelete.push_back(i);
             }
         }
+    }
+
+    // Process deletions safely after the iteration
+    for (Entity e : toDelete) {
+        // Reuse your existing, robust function
+        RequestDeleteEntity(registry, e);
+        
+        // Ensure other systems know it's gone
+        registry.hasLifetime[e] = false; 
+    }
+
+    // Cleanup meshes once after all deletions are processed
+    if (!toDelete.empty()) {
+        MeshManager::CleanupUnusedMeshes();
     }
 }
 

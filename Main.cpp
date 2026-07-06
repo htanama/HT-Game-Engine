@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
     Logger::Log("Rendering Initialization Complete");
     
     Camera editorCamera;
-    float original_speed = 7.0f;
+    float original_speed = 12.0f;
     editorCamera.MovementSpeed = original_speed;
     editorCamera.position = glm::vec3(0.0f, 5.0f, 10.0f);
 
@@ -238,13 +238,14 @@ registry.hasRenderable[testEntity] = true;
         }
         
         if (state[SDL_SCANCODE_LSHIFT]) 
-            editorCamera.MovementSpeed = original_speed + 4.0f;
+            editorCamera.MovementSpeed = original_speed + 10.0f;
         else {
             editorCamera.MovementSpeed = original_speed;
         }	
 		
 		if (gameState == EditorState::Playing){
 				MovementSystem(registry, deltaTime);
+				LifetimeSystem(registry, deltaTime);
 		}
 	
         float currentAspectRatio = (float)renderer.currentWindowWidth / renderer.currentWindowHeight;        

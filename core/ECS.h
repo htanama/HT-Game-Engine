@@ -17,8 +17,7 @@ public:
     std::vector<Transform> transforms;
     std::vector<Renderable> renderables;
     std::vector<Velocity> velocities;
-    std::vector<ColorComponent> colors;
-    std::vector<RotationComponent> rotations;
+    std::vector<ColorComponent> colors;    
     std::vector<LifetimeComponent> lifetimes;
     std::vector<CameraComponent> cameras; // New vector to hold camera components
     std::vector<NameComponent> names;
@@ -30,8 +29,7 @@ public:
     std::vector<bool> hasTransform;
     std::vector<bool> hasRenderable;
     std::vector<bool> hasVelocity;
-    std::vector<bool> hasColor;
-    std::vector<bool> hasRotation;
+    std::vector<bool> hasColor;    
     std::vector<bool> hasLifetime;
     std::vector<bool> hasCamera; // Track which entities have a CameraComponent
     std::vector<bool> hasName;
@@ -46,8 +44,7 @@ public:
         transforms.push_back({}); // Add default Transform
         renderables.push_back({}); // Add default Renderable
         velocities.push_back({}); // Add default Velocity
-        colors.push_back({}); // Add default ColorComponent
-        rotations.push_back({}); // Add default RotationComponent
+        colors.push_back({}); // Add default ColorComponent        
         lifetimes.push_back({}); // Add default LifetimeComponent
         names.push_back({defaultName});
         textures.push_back({});
@@ -57,8 +54,7 @@ public:
         hasTransform.push_back(false); // Initially, the entity has no components
         hasRenderable.push_back(false); // Initially, the entity has no components
         hasVelocity.push_back(false); // Initially, the entity has no components
-        hasColor.push_back(false); // Initially, the entity has no components
-        hasRotation.push_back(false); // Initially, the entity has no components
+        hasColor.push_back(false); // Initially, the entity has no components        
         hasLifetime.push_back(false); // Initially, the entity has no components
         hasName.push_back(true);
         hasTexture.push_back(false);
@@ -67,6 +63,27 @@ public:
         
         ++entityCount;
         return id;
+    }
+    
+    // Add to Registry class in ECS.h
+    Entity CopyEntity(Entity source) {
+        Entity newEnt = CreateEntity();
+
+        // Copy components if the source has them
+        if (hasTransform[source]) AddTransform(newEnt, transforms[source]);
+        if (hasRenderable[source]) AddRenderable(newEnt, renderables[source]);        
+        if (hasColor[source]) AddColor(newEnt, colors[source]);        
+        if (hasLifetime[source]) AddLifetime(newEnt, lifetimes[source]);
+        if (hasTexture[source]) AddTexture(newEnt, textures[source]);
+        if (hasPhysics[source]) AddPhysics(newEnt, physics[source]);
+        if (hasVelocity[source]) AddVelocity(newEnt, velocities[source].value);
+        
+        // Copy the name and append "_copy"
+        if (hasName[source]) {
+            names[newEnt].name = names[source].name + "_copy";
+        }
+
+        return newEnt;
     }
 
     // Physically removes all "dead" entities from memory
@@ -78,8 +95,7 @@ public:
                 transforms.erase(transforms.begin() + i);
                 renderables.erase(renderables.begin() + i);
                 velocities.erase(velocities.begin() + i);
-                colors.erase(colors.begin() + i);
-                rotations.erase(rotations.begin() + i);
+                colors.erase(colors.begin() + i);                
                 lifetimes.erase(lifetimes.begin() + i);
                 cameras.erase(cameras.begin() + i);
                 textures.erase(textures.begin() + i);                
@@ -89,7 +105,6 @@ public:
                 hasRenderable.erase(hasRenderable.begin() + i);
                 hasVelocity.erase(hasVelocity.begin() + i);
                 hasColor.erase(hasColor.begin() + i);
-                hasRotation.erase(hasRotation.begin() + i);
                 hasLifetime.erase(hasLifetime.begin() + i);
                 hasCamera.erase(hasCamera.begin() + i);
                 hasTexture.erase(hasTexture.begin() + i);
@@ -103,8 +118,7 @@ public:
 		transforms.clear();
 		renderables.clear();
 		velocities.clear();
-		colors.clear();
-		rotations.clear();
+		colors.clear();		
 		lifetimes.clear();
 		cameras.clear();
 		names.clear();
@@ -115,8 +129,7 @@ public:
 		hasTransform.clear();
 		hasRenderable.clear();
 		hasVelocity.clear();
-		hasColor.clear();
-		hasRotation.clear();
+		hasColor.clear();		
 		hasLifetime.clear();
 		hasName.clear();
 		hasTexture.clear();
@@ -148,12 +161,6 @@ public:
         if (colors.size() <= e) colors.resize(e + 1);
         colors[e] = c;
         hasColor[e] = 1;
-    }
-
-    void AddRotation(Entity e, RotationComponent r) {
-        if (rotations.size() <= e) rotations.resize(e + 1);
-        rotations[e] = r;
-        hasRotation[e] = 1;
     }
 
     void AddLifetime(Entity e, LifetimeComponent l) {
