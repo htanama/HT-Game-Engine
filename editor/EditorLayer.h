@@ -4,7 +4,7 @@
 #include "core/Engine.h"
 #include "core/Camera.h"
 #include "core/ECS.h"
-#include "utility/CubeBuilder.h"
+#include "utility/3DShapeBuilder.h"
 #include "utility/MeshManager.h"
 #include "core/Systems.h"
 #include "utility/SceneSerializer.h"
@@ -452,6 +452,18 @@ public:
 					}
 				}
 
+                if (ImGui::Selectable("Mesh Component")) {
+                    // Check if it already has the component first to avoid overwriting or double-init
+                    if (!registry.hasMesh[selectedEntity]) {
+                        // Create the component object
+                        MeshComponent newComp(MeshType::Cube);
+                        
+                        // Call your centralized function which handles resizing, 
+                        // flag setting, and MeshManager registration
+                        registry.AddMeshComponent(selectedEntity, newComp);
+                    }
+                }
+
 				ImGui::EndPopup();
 			}
 	   
@@ -665,6 +677,32 @@ public:
                         }
                     }
                 }
+
+                // Adding Mesh Components: { Cube, Sphere, Cylinder, Pyramid, Cone }
+                if (registry.hasMesh[selectedEntity]) {
+                    MeshComponent& mc = registry.meshes[selectedEntity];
+                    
+                    const char* shapes[] = { "Cube", "Sphere" };
+                    int current = (int)mc.type;
+
+                    if (ImGui::Combo("Shape", &current, shapes, IM_ARRAYSIZE(shapes))) {
+                        mc.type = (MeshType)current;                                              
+                        
+                        // 1. Create the new mesh
+                        mc.mesh = MeshManager::CreateMeshFromType(mc.type); 
+                        
+                        // 2. IMPORTANT: Update the Renderable component so the renderer picks up the change
+                        if (registry.hasRenderable[selectedEntity]) {
+                            registry.renderables[selectedEntity].mesh = mc.mesh;
+                        } else {
+                            // If it didn't have a renderable, add one
+                            registry.AddRenderable(selectedEntity, { mc.mesh });
+                        }
+                        
+                        Logger::Log("Mesh changed to type: " + std::to_string((int)mc.type));
+                    }
+                }
+
 	
             }          
         ImGui::End();

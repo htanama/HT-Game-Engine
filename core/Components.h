@@ -39,6 +39,17 @@ struct Renderable {
     bool isWireframe = false;
 };
 
+enum class MeshType { Cube, Sphere, Cylinder }; // Add more as you create them
+
+struct MeshComponent {
+    MeshType type = MeshType::Cube;
+    std::shared_ptr<Mesh> mesh; // The actual data sent to the GPU
+
+    MeshComponent(MeshType t = MeshType::Cube) : type(t) {
+        // You would call your MeshManager to load the appropriate mesh data here
+    }
+};
+
 struct Velocity{
     glm::vec3 value{0.0f};
 };
