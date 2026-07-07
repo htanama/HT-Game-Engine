@@ -23,7 +23,7 @@ public:
     std::vector<CameraComponent> cameras; // New vector to hold camera components
     std::vector<NameComponent> names;
     std::vector<TextureComponent> textures; 
-    std::vector<PhysicsComponent> physics;
+    std::vector<PhysicsComponent> physics; // collision detection
     std::vector<MeshComponent> meshes;
 
     
@@ -81,9 +81,13 @@ public:
         if (hasLifetime[source]) AddLifetime(newEnt, lifetimes[source]);
         if (hasTexture[source]) AddTexture(newEnt, textures[source]);
         if (hasPhysics[source]) AddPhysics(newEnt, physics[source]);
-        if (hasVelocity[source]) AddVelocity(newEnt, velocities[source].value);
         if (hasMesh[source]) AddMeshComponent(newEnt, meshes[source]);
 
+        if (hasVelocity[source]) {
+            velocities[newEnt] = velocities[source];
+            hasVelocity[newEnt] = true;
+        }
+     
         // Copy the name and append "_copy"
         if (hasName[source]) {
             names[newEnt].name = names[source].name + "_copy";
