@@ -118,17 +118,23 @@ void MovementSystem(Registry& reg, float deltaTime) {
     static bool wasColliding = false;
 
     for (size_t e = 0; e < reg.GetEntityCount(); e++) {        
+        // 1. Skip entities without necessary movement components
         if (!reg.hasVelocity[e] || !reg.hasTransform[e]) continue;
 
-        glm::vec3 nextPos = reg.transforms[e].position + (reg.velocities[e].value * deltaTime);
+        // 2. Calculate future state
+        // Assuming your Velocity struct has 'linear' (vec3) and 'angular' (vec3)
+        glm::vec3 nextPos = reg.transforms[e].position + (reg.velocities[e].linear * deltaTime);
+        glm::vec3 nextRot = reg.transforms[e].rotation + (reg.velocities[e].angular * deltaTime);
+
         bool isColliding = false;
 
-        // Store original position to revert if we hit something
+        // 3. Store original state to revert if we hit something
         glm::vec3 originalPos = reg.transforms[e].position;
         
         // Temporarily set position to check collision
         reg.transforms[e].position = nextPos;
 
+        // 4. Collision Detection
         for (size_t other = 0; other < reg.GetEntityCount(); other++) {
             if (e == other) continue; 
             
@@ -141,6 +147,7 @@ void MovementSystem(Registry& reg, float deltaTime) {
             }
         }
 
+        // 5. Apply Movement or Revert
         if (isColliding) {
             // Log only when entering the collision state
             if (!wasColliding) {
@@ -148,13 +155,14 @@ void MovementSystem(Registry& reg, float deltaTime) {
                 wasColliding = true;
             }
             
-            // Revert position and clear velocity on impact
+            // Revert position on impact, but we allow rotation even if blocked by a wall
             reg.transforms[e].position = originalPos;
-            //reg.velocities[e].value = glm::vec3(0.0f); 
+            reg.transforms[e].rotation = nextRot; 
         } else {
-            // Reset the flag and commit the movement
+            // Reset the flag and commit both movement and rotation
             wasColliding = false;
             reg.transforms[e].position = nextPos;
+            reg.transforms[e].rotation = nextRot;
         }
     }
 }

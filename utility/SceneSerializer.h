@@ -61,13 +61,26 @@ public:
                 entity["name"] = reg.names[i].name;
             }
             
-            
-            if (reg.hasPhysics[i]) { // Ensure you have a check for the physics component
+            // To enabled/disabled Collision Detection 
+            if (reg.hasPhysics[i]) {
 				entity["physics"] = {
 					{"isEnabled", reg.physics[i].isEnabled}
 				};
 			}
             
+            if (reg.hasVelocity[i]) {
+                entity["velocity"] = {
+                    {"linear", {reg.velocities[i].linear.x, reg.velocities[i].linear.y, reg.velocities[i].linear.z}},
+                    {"angular", {reg.velocities[i].angular.x, reg.velocities[i].angular.y, reg.velocities[i].angular.z}}
+                };
+            }
+
+            if (reg.hasLifetime[i]) {
+                entity["lifetime"] = {
+                    {"remainingTime", reg.lifetimes[i].remainingTime}
+                };
+            }
+
             if (reg.hasRenderable[i]) { 
                 entity["meshName"] = "cube"; 
                 // for the future to add object using file path .obj 
@@ -103,6 +116,8 @@ public:
         std::ofstream file(filepath);
         file << scene.dump(4);
     }
+
+
 
     // Clears current registry and loads from file
     static void LoadScene(Registry& reg, const std::string& filepath) {
@@ -165,8 +180,27 @@ public:
             if (entityData.contains("name")) {
                 reg.names[entity].name = entityData["name"];
                 reg.hasName[entity] = true;
+            }                        
+            
+            if (entityData.contains("velocity")) {
+                reg.velocities[entity].linear = {
+                    entityData["velocity"]["linear"][0],
+                    entityData["velocity"]["linear"][1],
+                    entityData["velocity"]["linear"][2]
+                };
+                reg.velocities[entity].angular = {
+                    entityData["velocity"]["angular"][0],
+                    entityData["velocity"]["angular"][1],
+                    entityData["velocity"]["angular"][2]
+                };
+                reg.hasVelocity[entity] = true;
             }
 
+            if (entityData.contains("lifetime")) {
+                reg.lifetimes[entity].remainingTime = entityData["lifetime"]["remainingTime"];
+                reg.hasLifetime[entity] = true;
+            }          
+          
             if (entityData.contains("meshName")) {
                 std::string meshName = entityData["meshName"];
                 
@@ -181,21 +215,6 @@ public:
                 reg.hasRenderable[entity] = true;
             }
 
-            //if (entityData.contains("meshName")) {
-            //    std::string meshName = entityData["meshName"];
-            //    
-            //    // Re-link the pointer based on the saved name
-            //    if (meshName == "sphere") {
-            //        reg.renderables[entity].mesh = MeshManager::CreateMeshFromType(MeshType::Sphere);
-            //        reg.meshes[entity].type = MeshType::Sphere; // Ensure the component is synced
-            //    } else {
-            //        reg.renderables[entity].mesh = MeshManager::CreateMeshFromType(MeshType::Cube);
-            //        reg.meshes[entity].type = MeshType::Cube;
-            //    }
-            //    reg.hasRenderable[entity] = true;
-            //    reg.hasMesh[entity] = true;
-            //}
-			
 			// We do not need to serialize texture coordinate per entity 
 			// because they are baked into the mesh data	
 			if (entityData.contains("meshName")) {

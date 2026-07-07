@@ -644,18 +644,21 @@ public:
 								
 				// Adding the Velocity UI to the Inspector
 				if (registry.hasVelocity[selectedEntity]) {
-					ImGui::Separator();
-					ImGui::Text("Velocity");
-					// Use DragFloat3 to edit the value
-					if (ImGui::DragFloat3("##Velocity", &registry.velocities[selectedEntity].value.x, 0.1f)) {
-						// Automatically updates because we are editing the Registry memory directly
-					}
-					
-					// Optional: Add a button to remove the component
-					if (ImGui::Button("Remove Velocity")) {
-						registry.hasVelocity[selectedEntity] = false;
-					}
-				}
+                    ImGui::Separator();
+                    ImGui::Text("Velocity Settings");
+                    
+                    // Linear Velocity
+                    ImGui::Text("Linear:");
+                    ImGui::DragFloat3("##Linear", &registry.velocities[selectedEntity].linear.x, 0.1f);
+                    
+                    // Angular Velocity
+                    ImGui::Text("Angular (Deg/s):");
+                    ImGui::DragFloat3("##Angular", &registry.velocities[selectedEntity].angular.x, 1.0f);
+                    
+                    if (ImGui::Button("Remove Velocity")) {
+                        registry.hasVelocity[selectedEntity] = false;
+                    }
+                }
 
                 // Adding the LifeTimeComponent
                 if (registry.hasLifetime[selectedEntity]) {

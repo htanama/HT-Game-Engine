@@ -21,6 +21,7 @@ struct CameraComponent {
     bool isPlayerCamera = false; // True if this camera should be used for player view
 };
 
+// Physics Component for collision detection
 struct PhysicsComponent{
 	bool isEnabled = false;
 	bool isPhysicsWireframe = false; // Used to toggle visual debug
@@ -51,7 +52,8 @@ struct MeshComponent {
 };
 
 struct Velocity{
-    glm::vec3 value{0.0f};
+    glm::vec3 linear{0.0f};  // For position
+    glm::vec3 angular{0.0f}; // For rotation (pitch, yaw, roll)
 };
 
 struct ColorComponent {

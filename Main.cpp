@@ -244,8 +244,8 @@ registry.hasRenderable[testEntity] = true;
         }	
 		
 		if (gameState == EditorState::Playing){
-				MovementSystem(registry, deltaTime);
-				LifetimeSystem(registry, deltaTime);
+			MovementSystem(registry, deltaTime);
+			LifetimeSystem(registry, deltaTime);
 		}
 	
         float currentAspectRatio = (float)renderer.currentWindowWidth / renderer.currentWindowHeight;        
