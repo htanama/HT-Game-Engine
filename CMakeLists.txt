@@ -21,10 +21,10 @@ set(PROJECT_HEADERS
     ${CORE_DIR}/Renderer.h ${CORE_DIR}/Shader.h ${CORE_DIR}/ECS.h 
 	${CORE_DIR}/Components.h ${CORE_DIR}/Systems.h ${CORE_DIR}/Texture.h
     editor/EditorLayer.h
-    ${UTILITY_DIR}/CubeBuilder.h ${UTILITY_DIR}/stb_image.h
+    ${UTILITY_DIR}/3DShapeBuilder.h ${UTILITY_DIR}/stb_image.h
 )
 
-set(PROJECT_UTILITY utility/CubeBuilder.h utility/MeshManager.h utility/json.hpp utility/SceneSerializer.h)
+set(PROJECT_UTILITY utility/3DShapeBuilder.h utility/MeshManager.h utility/json.hpp utility/SceneSerializer.h)
 
 if(WIN32)
     add_library(SDL3_prebuilt SHARED IMPORTED)

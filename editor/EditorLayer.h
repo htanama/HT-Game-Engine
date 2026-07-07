@@ -4,7 +4,7 @@
 #include "core/Engine.h"
 #include "core/Camera.h"
 #include "core/ECS.h"
-#include "utility/CubeBuilder.h"
+#include "utility/3DShapeBuilder.h"
 #include "utility/MeshManager.h"
 #include "core/Systems.h"
 #include "utility/SceneSerializer.h"
@@ -443,8 +443,7 @@ public:
 						registry.velocities[selectedEntity] = { glm::vec3(0.0f) };
 					}
 				}
-				
-                // using this for projectile to have certain life time and then remove
+		
 				if (!registry.hasLifetime[selectedEntity]) {
 					if (ImGui::Selectable("Lifetime")) {
 						registry.hasLifetime[selectedEntity] = true;
@@ -452,6 +451,13 @@ public:
 					}
 				}
 
+				if (!registry.hasMesh[selectedEntity]) {
+                	if (ImGui::Selectable("Mesh Component")) {
+                        MeshComponent newComp(MeshType::Cube);
+                        registry.hasMesh[selectedEntity] = true;                        
+                        registry.AddMeshComponent(selectedEntity, newComp);
+                    }
+                }
 				ImGui::EndPopup();
 			}
 	   
@@ -665,7 +671,34 @@ public:
                         }
                     }
                 }
-	
+
+                // Adding Mesh Components: { Cube, Sphere, Cylinder, Pyramid, Cone }
+                if (registry.hasMesh[selectedEntity]) {
+                    MeshComponent& mc = registry.meshes[selectedEntity];
+                    
+                    const char* shapes[] = { "Cube", "Sphere", "Cylinder", "Capsule", "Pyramid" };
+                    int current = (int)mc.type;
+
+                    if (ImGui::Combo("Shape", &current, shapes, IM_ARRAYSIZE(shapes))) {
+                        mc.type = (MeshType)current;                                              
+                        
+                        // 1. Create the new mesh
+                        mc.mesh = MeshManager::CreateMeshFromType(mc.type); 
+                        
+                        // 2. IMPORTANT: Update the Renderable component so the renderer picks up the change
+                        if (registry.hasRenderable[selectedEntity]) {
+                            registry.renderables[selectedEntity].mesh = mc.mesh;
+                        } else {
+                            // If it didn't have a renderable, add one
+                            registry.AddRenderable(selectedEntity, { mc.mesh });
+                        }
+						
+					}
+					if (ImGui::Button("Remove Mesh")) {
+						registry.hasMesh[selectedEntity] = false;
+					}
+						
+                }
             }          
         ImGui::End();
 

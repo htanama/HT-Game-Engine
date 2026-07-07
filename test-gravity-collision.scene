@@ -35,7 +35,7 @@
             },
             "id": 1,
             "meshName": "cube",
-            "name": "floor",
+            "name": "tile_floor1",
             "physics": {
                 "isEnabled": true
             },
@@ -68,6 +68,9 @@
             "id": 2,
             "meshName": "cube",
             "name": "box",
+            "physics": {
+                "isEnabled": true
+            },
             "rotation": {
                 "x": 0.0,
                 "y": 0.0,
@@ -83,9 +86,9 @@
                 "useTexture": true
             },
             "transform": {
-                "x": -6.699999809265137,
-                "y": 10.0,
-                "z": 1.899999976158142
+                "x": -6.674457550048828,
+                "y": 9.999999046325684,
+                "z": 1.8965667486190796
             }
         },
         {
@@ -97,6 +100,9 @@
             "id": 3,
             "meshName": "cube",
             "name": "box2",
+            "physics": {
+                "isEnabled": true
+            },
             "rotation": {
                 "x": 0.0,
                 "y": 0.0,
@@ -125,7 +131,170 @@
             },
             "id": 4,
             "meshName": "cube",
-            "name": "floor2",
+            "name": "dirt_floor1",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/dirt.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 19.899999618530273,
+                "y": 0.0,
+                "z": -20.100000381469727
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 5,
+            "meshName": "cube",
+            "name": "tile_floor2",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/tile.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -0.20000000298023224,
+                "y": 0.0,
+                "z": 19.899999618530273
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 6,
+            "meshName": "cube",
+            "name": "chess_floor1",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/chess_tile.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -0.00800000037997961,
+                "y": -1.9073486328125e-06,
+                "z": -20.360000610351563
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 7,
+            "meshName": "cube",
+            "name": "chess_floor2",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/chess_tile.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -20.0,
+                "y": 0.0,
+                "z": -19.700000762939453
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 8,
+            "meshName": "cube",
+            "name": "chess_floor3",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/chess_tile.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -19.899999618530273,
+                "y": 0.0,
+                "z": 0.30000001192092896
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 9,
+            "meshName": "cube",
+            "name": "dirt_floor2",
+            "physics": {
+                "isEnabled": true
+            },
             "rotation": {
                 "x": 0.0,
                 "y": 0.0,
@@ -152,9 +321,44 @@
                 "g": 1.0,
                 "r": 1.0
             },
-            "id": 5,
+            "id": 10,
             "meshName": "cube",
-            "name": "floor3",
+            "name": "dirt_floor3",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/dirt.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 19.899999618530273,
+                "y": 0.0,
+                "z": 20.0
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 11,
+            "meshName": "cube",
+            "name": "tile_floor3",
+            "physics": {
+                "isEnabled": true
+            },
             "rotation": {
                 "x": 0.0,
                 "y": 0.0,
@@ -170,67 +374,9 @@
                 "useTexture": true
             },
             "transform": {
-                "x": -0.20000000298023224,
+                "x": -19.899999618530273,
                 "y": 0.0,
-                "z": 21.200000762939453
-            }
-        },
-        {
-            "color": {
-                "b": 1.0,
-                "g": 1.0,
-                "r": 1.0
-            },
-            "id": 6,
-            "meshName": "cube",
-            "name": "floor4",
-            "rotation": {
-                "x": 0.0,
-                "y": 0.0,
-                "z": 0.0
-            },
-            "scale": {
-                "x": 20.0,
-                "y": 0.20000000298023224,
-                "z": 20.0
-            },
-            "texture": {
-                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/stone.png",
-                "useTexture": true
-            },
-            "transform": {
-                "x": -20.5,
-                "y": 0.0,
-                "z": 0.0
-            }
-        },
-        {
-            "color": {
-                "b": 1.0,
-                "g": 1.0,
-                "r": 1.0
-            },
-            "id": 7,
-            "meshName": "cube",
-            "name": "floor5",
-            "rotation": {
-                "x": 0.0,
-                "y": 0.0,
-                "z": 0.0
-            },
-            "scale": {
-                "x": 20.0,
-                "y": 0.5,
-                "z": 20.0
-            },
-            "texture": {
-                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/chess_tile.png",
-                "useTexture": true
-            },
-            "transform": {
-                "x": 0.0,
-                "y": 0.0,
-                "z": -21.0
+                "z": 19.899999618530273
             }
         }
     ]

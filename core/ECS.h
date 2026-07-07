@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include "Components.h"
+#include "utility/MeshManager.h"
 
 using Entity = size_t; // Alias for entity IDs
 
@@ -23,6 +24,7 @@ public:
     std::vector<NameComponent> names;
     std::vector<TextureComponent> textures; 
     std::vector<PhysicsComponent> physics;
+    std::vector<MeshComponent> meshes;
 
     
     // We use a simple way to track which entity has which componetes.  
@@ -35,6 +37,7 @@ public:
     std::vector<bool> hasName;
     std::vector<bool> hasTexture;           
 	std::vector<bool> hasPhysics;
+    std::vector<bool> hasMesh;
 
     Entity CreateEntity(){        
         // New entity ID is the current size of the component arrays
@@ -50,6 +53,7 @@ public:
         textures.push_back({});
 		cameras.push_back({}); // we need to limit how many camera ?		
     	physics.push_back({});
+        meshes.push_back({});
 
         hasTransform.push_back(false); // Initially, the entity has no components
         hasRenderable.push_back(false); // Initially, the entity has no components
@@ -60,7 +64,8 @@ public:
         hasTexture.push_back(false);
 		hasCamera.push_back(false);
         hasPhysics.push_back(false);
-        
+        hasMesh.push_back(false);
+
         ++entityCount;
         return id;
     }
@@ -77,7 +82,8 @@ public:
         if (hasTexture[source]) AddTexture(newEnt, textures[source]);
         if (hasPhysics[source]) AddPhysics(newEnt, physics[source]);
         if (hasVelocity[source]) AddVelocity(newEnt, velocities[source].value);
-        
+        if (hasMesh[source]) AddMeshComponent(newEnt, meshes[source]);
+
         // Copy the name and append "_copy"
         if (hasName[source]) {
             names[newEnt].name = names[source].name + "_copy";
@@ -99,7 +105,8 @@ public:
                 lifetimes.erase(lifetimes.begin() + i);
                 cameras.erase(cameras.begin() + i);
                 textures.erase(textures.begin() + i);                
-                
+                meshes.erase(meshes.begin() + i); 
+
                 hasName.erase(hasName.begin() + i);
                 hasTransform.erase(hasTransform.begin() + i);
                 hasRenderable.erase(hasRenderable.begin() + i);
@@ -108,6 +115,7 @@ public:
                 hasLifetime.erase(hasLifetime.begin() + i);
                 hasCamera.erase(hasCamera.begin() + i);
                 hasTexture.erase(hasTexture.begin() + i);
+                hasMesh.erase(hasMesh.begin() + i);
                
             }
         }        
@@ -124,6 +132,7 @@ public:
 		names.clear();
 		textures.clear();
 		physics.clear();
+        meshes.clear();
 		
 		// Reset all tracking vectors
 		hasTransform.clear();
@@ -135,7 +144,8 @@ public:
 		hasTexture.clear();
 		hasCamera.clear();
 		hasPhysics.clear();
-		
+		hasMesh.clear();
+
 		entityCount = 0;
 	}
 
@@ -169,6 +179,24 @@ public:
         hasLifetime[e] = 1;
     }
 
+    void AddMeshComponent(Entity e, MeshComponent mc) {
+        // Ensure the vector is large enough to prevent out-of-bounds access
+        if (meshes.size() <= e) {
+            meshes.resize(e + 1);
+            hasMesh.resize(e + 1, false);
+        }
+       
+        // Assign the passed-in component
+        meshes[e] = mc;
+        hasMesh[e] = true;
+
+        // 3. Ensure the actual mesh data is initialized via the manager
+        if (!meshes[e].mesh) {
+            meshes[e].mesh = MeshManager::CreateMeshFromType(mc.type);
+        }
+        hasMesh[e] = true;
+    }
+
     size_t GetEntityCount() const {
         return entityCount;
     }
@@ -199,4 +227,6 @@ public:
         physics[e] = p;
         hasPhysics[e] = true;
     }	    
+
+
 };

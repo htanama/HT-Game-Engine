@@ -117,8 +117,7 @@ void MovementSystem(Registry& reg, float deltaTime) {
     // Shared static flag to track state across frames for logging
     static bool wasColliding = false;
 
-    for (size_t e = 0; e < reg.GetEntityCount(); e++) {
-        // REMOVED: Name-check for "player". Now processes ANY entity with Transform and Velocity.
+    for (size_t e = 0; e < reg.GetEntityCount(); e++) {        
         if (!reg.hasVelocity[e] || !reg.hasTransform[e]) continue;
 
         glm::vec3 nextPos = reg.transforms[e].position + (reg.velocities[e].value * deltaTime);
@@ -151,7 +150,7 @@ void MovementSystem(Registry& reg, float deltaTime) {
             
             // Revert position and clear velocity on impact
             reg.transforms[e].position = originalPos;
-            reg.velocities[e].value = glm::vec3(0.0f); 
+            //reg.velocities[e].value = glm::vec3(0.0f); 
         } else {
             // Reset the flag and commit the movement
             wasColliding = false;

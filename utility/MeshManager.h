@@ -2,7 +2,7 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
-#include "utility/CubeBuilder.h"
+#include "utility/3DShapeBuilder.h"
 #include "core/Mesh.h"
 #include <SDL3_image/SDL_image.h>
 #include "utility/stb_image.h"
@@ -12,13 +12,12 @@ namespace MeshManager
     // Use 'inline' for the vector so it is shared across all files
     inline std::vector<std::shared_ptr<Mesh>> meshLibrary;
 
-    // Use 'inline' for the functions to avoid "multiple definition" errors
+	// Use 'inline' for the functions to avoid "multiple definition" errors
     inline std::shared_ptr<Mesh> CreateNewCubeMesh() {
         std::vector<Vertex> vertices;
         std::vector<unsigned int> indices;
         //GetCubeData(vertices, indices); 
         GetCubeDataWithTexture(vertices, indices); 
-
 
         auto newMesh = std::make_shared<Mesh>(vertices, indices);
 
@@ -26,6 +25,50 @@ namespace MeshManager
         return newMesh;
     }
 
+	// Helper function to get a mesh from a type
+	inline std::shared_ptr<Mesh> CreateMeshFromType(MeshType type) {
+		std::shared_ptr<Mesh> newMesh;
+		std::vector<Vertex> v;
+		std::vector<unsigned int> i;
+
+		switch(type) {
+			case MeshType::Cube: 
+				newMesh = CreateNewCubeMesh(); 
+				break;
+				
+			case MeshType::Sphere:
+				v.clear(); i.clear(); // Explicitly clear before passing
+				GetSphereData(v, i, 0.5f, 36, 18);
+				newMesh = std::make_shared<Mesh>(v, i);
+				break;
+
+			case MeshType::Cylinder:
+				v.clear(); i.clear(); // Explicitly clear before passing
+				GetCylinderData(v, i, 0.5f, 1.0f, 36);
+				newMesh = std::make_shared<Mesh>(v, i);
+				break;
+
+			case MeshType::Capsule:
+				v.clear(); i.clear(); // Explicitly clear before passing
+				GetCapsuleData(v, i, 0.5f, 1.0f, 36, 18);
+				newMesh = std::make_shared<Mesh>(v, i);
+				break;
+
+			case MeshType::Pyramid:
+				v.clear(); i.clear(); // Explicitly clear before passing
+				GetPyramidData(v, i, 1.0f, 1.0f);
+				newMesh = std::make_shared<Mesh>(v, i);
+				break;
+		}
+
+		// Only add to library if creation succeeded
+		if (newMesh) {
+			meshLibrary.push_back(newMesh);
+		}
+		return newMesh;
+	}
+
+	
     inline void CleanupUnusedMeshes() {
         meshLibrary.erase(
             std::remove_if(meshLibrary.begin(), meshLibrary.end(), 

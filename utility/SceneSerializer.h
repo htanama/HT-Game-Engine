@@ -84,6 +84,18 @@ public:
 				};
 
 			}
+           
+			if (reg.hasMesh[i]) {
+                std::string meshName;
+                switch (reg.meshes[i].type) {
+                    case MeshType::Cube:     meshName = "cube";     break;
+                    case MeshType::Sphere:   meshName = "sphere";   break;
+                    case MeshType::Cylinder: meshName = "cylinder"; break;
+                    case MeshType::Capsule:  meshName = "capsule";  break;
+                    case MeshType::Pyramid:  meshName = "pyramid";  break;
+                }
+                entity["meshName"] = meshName;
+            }
 
             scene["entities"].push_back(entity);
         }
@@ -169,6 +181,45 @@ public:
                 reg.hasRenderable[entity] = true;
             }
 
+            //if (entityData.contains("meshName")) {
+            //    std::string meshName = entityData["meshName"];
+            //    
+            //    // Re-link the pointer based on the saved name
+            //    if (meshName == "sphere") {
+            //        reg.renderables[entity].mesh = MeshManager::CreateMeshFromType(MeshType::Sphere);
+            //        reg.meshes[entity].type = MeshType::Sphere; // Ensure the component is synced
+            //    } else {
+            //        reg.renderables[entity].mesh = MeshManager::CreateMeshFromType(MeshType::Cube);
+            //        reg.meshes[entity].type = MeshType::Cube;
+            //    }
+            //    reg.hasRenderable[entity] = true;
+            //    reg.hasMesh[entity] = true;
+            //}
+			
+			// We do not need to serialize texture coordinate per entity 
+			// because they are baked into the mesh data	
+			if (entityData.contains("meshName")) {
+				std::string meshName = entityData["meshName"];
+				MeshType type = MeshType::Cube; // Default
+
+				if (meshName == "cube")     type = MeshType::Cube;
+				else if (meshName == "sphere")   type = MeshType::Sphere;
+				else if (meshName == "cylinder") type = MeshType::Cylinder;
+				else if (meshName == "capsule")  type = MeshType::Capsule;
+				else if (meshName == "pyramid")  type = MeshType::Pyramid;
+
+				// This single call handles geometry generation + texture coordinates
+				// Use the helper that manages your mesh library/creation
+                reg.meshes[entity].type = type;
+                reg.meshes[entity].mesh = MeshManager::CreateMeshFromType(type);
+                
+                // Sync the Renderable component
+                reg.renderables[entity].mesh = reg.meshes[entity].mesh; 
+                
+                reg.hasMesh[entity] = true;
+                reg.hasRenderable[entity] = true;
+			}
+			
 			// Reload the texture from disk using the saved asset path.
 			if(entityData.contains("texture")){
 				TextureComponent textureComponent;
