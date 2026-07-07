@@ -27,21 +27,46 @@ namespace MeshManager
 
 	// Helper function to get a mesh from a type
 	inline std::shared_ptr<Mesh> CreateMeshFromType(MeshType type) {
-        std::shared_ptr<Mesh> newMesh;
-        if (type == MeshType::Sphere) {
-            std::vector<Vertex> v;
-            std::vector<unsigned int> i;
-            GetSphereData(v, i, 0.5f, 36, 18); //[cite: 4]
-            newMesh = std::make_shared<Mesh>(v, i);
-        } else {
-            newMesh = CreateNewCubeMesh(); // Already adds to library
-        }
-        
-        // Ensure all meshes are tracked for cleanup[cite: 5]
-        meshLibrary.push_back(newMesh);
-        return newMesh;
-    }
+		std::shared_ptr<Mesh> newMesh;
+		std::vector<Vertex> v;
+		std::vector<unsigned int> i;
 
+		switch(type) {
+			case MeshType::Cube: 
+				newMesh = CreateNewCubeMesh(); 
+				break;
+				
+			case MeshType::Sphere:
+				v.clear(); i.clear(); // Explicitly clear before passing
+				GetSphereData(v, i, 0.5f, 36, 18);
+				newMesh = std::make_shared<Mesh>(v, i);
+				break;
+
+			case MeshType::Cylinder:
+				v.clear(); i.clear(); // Explicitly clear before passing
+				GetCylinderData(v, i, 0.5f, 1.0f, 36);
+				newMesh = std::make_shared<Mesh>(v, i);
+				break;
+
+			case MeshType::Capsule:
+				v.clear(); i.clear(); // Explicitly clear before passing
+				GetCapsuleData(v, i, 0.5f, 1.0f, 36, 18);
+				newMesh = std::make_shared<Mesh>(v, i);
+				break;
+
+			case MeshType::Pyramid:
+				v.clear(); i.clear(); // Explicitly clear before passing
+				GetPyramidData(v, i, 1.0f, 1.0f);
+				newMesh = std::make_shared<Mesh>(v, i);
+				break;
+		}
+
+		// Only add to library if creation succeeded
+		if (newMesh) {
+			meshLibrary.push_back(newMesh);
+		}
+		return newMesh;
+	}
 
 	
     inline void CleanupUnusedMeshes() {

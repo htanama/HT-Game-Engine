@@ -443,8 +443,7 @@ public:
 						registry.velocities[selectedEntity] = { glm::vec3(0.0f) };
 					}
 				}
-				
-                // using this for projectile to have certain life time and then remove
+		
 				if (!registry.hasLifetime[selectedEntity]) {
 					if (ImGui::Selectable("Lifetime")) {
 						registry.hasLifetime[selectedEntity] = true;
@@ -452,19 +451,11 @@ public:
 					}
 				}
 
-                if (ImGui::Selectable("Mesh Component")) {
-                    // Check if it already has the component first to avoid overwriting or double-init
-                    if (!registry.hasMesh[selectedEntity]) {
-                        // Create the component object
+				if (!registry.hasMesh[selectedEntity]) {
+                	if (ImGui::Selectable("Mesh Component")) {
                         MeshComponent newComp(MeshType::Cube);
                         registry.hasMesh[selectedEntity] = true;                        
-                        // Call your centralized function which handles resizing, 
-                        // flag setting, and MeshManager registration
                         registry.AddMeshComponent(selectedEntity, newComp);
-                        
-                        // ADD THIS LINE: It forces the popup to close, 
-                        // allowing the condition in the next frame to be false.
-                        ImGui::CloseCurrentPopup();
                     }
                 }
 				ImGui::EndPopup();
@@ -685,7 +676,7 @@ public:
                 if (registry.hasMesh[selectedEntity]) {
                     MeshComponent& mc = registry.meshes[selectedEntity];
                     
-                    const char* shapes[] = { "Cube", "Sphere" };
+                    const char* shapes[] = { "Cube", "Sphere", "Cylinder", "Capsule", "Pyramid" };
                     int current = (int)mc.type;
 
                     if (ImGui::Combo("Shape", &current, shapes, IM_ARRAYSIZE(shapes))) {
@@ -701,12 +692,13 @@ public:
                             // If it didn't have a renderable, add one
                             registry.AddRenderable(selectedEntity, { mc.mesh });
                         }
-                        
-                        Logger::Log("Mesh changed to type: " + std::to_string((int)mc.type));
-                    }
+						
+					}
+					if (ImGui::Button("Remove Mesh")) {
+						registry.hasMesh[selectedEntity] = false;
+					}
+						
                 }
-
-	
             }          
         ImGui::End();
 

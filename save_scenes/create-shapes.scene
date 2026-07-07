@@ -1,0 +1,33 @@
+{
+    "entities": [
+        {
+            "color": {
+                "b": 0.8101266026496887,
+                "g": 0.24762895703315735,
+                "r": 0.1264754682779312
+            },
+            "id": 1,
+            "meshName": "capsule",
+            "name": "Player",
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/earth.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -0.18799848854541779,
+                "y": 2.2205793857574463,
+                "z": 1.089604377746582
+            }
+        }
+    ]
+}

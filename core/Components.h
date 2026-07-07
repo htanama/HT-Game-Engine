@@ -39,7 +39,7 @@ struct Renderable {
     bool isWireframe = false;
 };
 
-enum class MeshType { Cube, Sphere, Cylinder }; // Add more as you create them
+enum class MeshType { Cube, Sphere, Cylinder, Capsule, Pyramid }; // Add more as you create them
 
 struct MeshComponent {
     MeshType type = MeshType::Cube;
