@@ -150,14 +150,20 @@ void MovementSystem(Registry& reg, float deltaTime) {
         // 5. Apply Movement or Revert
         if (isColliding) {
             // Log only when entering the collision state
-            if (!wasColliding) {
-                Logger::Log("Collision detected! Movement blocked.");
+            if (!wasColliding) {                
                 wasColliding = true;
             }
             
+            //if (reg.hasVelocity[e]) {
+            //    reg.velocities[e].linear = glm::vec3(0.0f); // Stops translation
+            //    reg.velocities[e].angular = glm::vec3(0.0f); // Stops rotation
+            //}
+
             // Revert position on impact, but we allow rotation even if blocked by a wall
             reg.transforms[e].position = originalPos;
             reg.transforms[e].rotation = nextRot; 
+
+
         } else {
             // Reset the flag and commit both movement and rotation
             wasColliding = false;
@@ -218,15 +224,42 @@ Entity GetProjectile(Registry& reg) {
 }
 
 void CameraSystem(Registry& reg, Entity playerID, Camera& cam) {
-    if (playerID != -1 && reg.hasTransform[playerID]) {
-        // Sync position
-        glm::vec3 playerPos = reg.transforms[playerID].position;
-        cam.position = playerPos + glm::vec3(0.0f, 1.6f, 0.0f); // 1.6f offset for head height
+    if (playerID != -1 && reg.hasTransform[playerID] && reg.hasPlayerController[playerID]) {
+        Transform& t = reg.transforms[playerID];
+        PlayerControllerComponent& ctrl = reg.playerControllers[playerID];
         
-        // Ensure the camera recalculates the view matrix using its new position
+        if(ctrl.isThirdPerson){
+            // Use the offset stored in the component
+            glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(t.rotation.y), glm::vec3(0, 1, 0));
+            cam.position = t.position + glm::vec3(rot * glm::vec4(ctrl.thirdPersonOffset, 0.0f));
+        } else {    
+            // Use the offset stored in the component
+            cam.position = t.position + ctrl.fpsOffset;
+        }           
         cam.UpdateCameraVectors();
     }
 }
+
+// void CameraSystem(Registry& reg, Entity playerID, Camera& cam) {
+//     if (playerID != -1 && reg.hasTransform[playerID]) {
+//         Transform& t = reg.transforms[playerID];
+		
+// 		if(reg.playerControllers[playerID].isThirdPerson){
+// 			// Apply the rotated offset
+// 			glm::vec3 offset = glm::vec3(0.0f, 10.5f, 20.0f);
+//             glm::mat4 rot = glm::rotate(glm::mat4(1.0f), glm::radians(t.rotation.y), glm::vec3(0, 1, 0));
+//             cam.position = t.position + glm::vec3(rot * glm::vec4(offset, 0.0f));
+//         } else {	
+// 			// Sync position - First Person View
+//         	glm::vec3 playerPos = reg.transforms[playerID].position;
+//         	cam.position = playerPos + glm::vec3(5.0f, 1.6f, 0.0f); // 1.6f offset for head height
+
+// 		}	        
+//         // Ensure the camera recalculates the view matrix using its new position
+//         cam.UpdateCameraVectors();
+//     }
+// }
+
 
 //void RenderSystem(Registry& reg, Shader& shader) { 
 void RenderSystem(Registry& reg, Shader& shader, Entity selectedEntity = (Entity)-1) {
@@ -317,71 +350,56 @@ void RenderSystem(Registry& reg, Shader& shader, Entity selectedEntity = (Entity
     }
 }
 
+Entity FindPlayerEntity(Registry& reg){
+	for (size_t i = 0; i < reg.GetEntityCount(); i++){		
+		if(reg.hasPlayerController[i]){			
+			return(Entity)i;
+		}
+	 
+	}
+	return -1;
+}
 
-//void RenderSystem(Registry& reg, Shader& shader) { 
-//    for (size_t e = 0; e < reg.renderables.size(); ++e) {
-//        if (!reg.hasRenderable[e]) continue;
-//
-//        // Iterate through every possible entity ID
-//        // Set the model matrix using your transform component (if it exists)
-//        glm::mat4 model = glm::mat4(1.0f);
-//        
-//        // Build the model matrix once using the transform
-//        if (reg.hasTransform[e]) {
-//            Transform& t = reg.transforms[e];
-//            model = glm::translate(model, t.position);
-//            model = glm::rotate(model, glm::radians(t.rotation.x), glm::vec3(1, 0, 0));
-//            model = glm::rotate(model, glm::radians(t.rotation.y), glm::vec3(0, 1, 0));
-//            model = glm::rotate(model, glm::radians(t.rotation.z), glm::vec3(0, 0, 1));
-//            model = glm::scale(model, t.scale);
-//        }
-//        
-//        // Recalculate the model with the updated transformation data
-//        shader.setMat4("model", model);
-//        
-//        // 2. Texture & Color State
-//        bool hasTex = reg.hasTexture[e] && reg.textures[e].useTexture;
-//        shader.setBool("useTexture", hasTex);
-//        shader.setBool("isVertexColor", false); // Explicitly disable vertex color
-//
-//        if (hasTex) {
-//            glActiveTexture(GL_TEXTURE0);
-//            glBindTexture(GL_TEXTURE_2D, reg.textures[e].textureID);
-//            shader.setInt("ourTexture", 0);
-//        }    
-//
-//        // Handle Color logic
-//        if (reg.hasColor[e]) {
-//			shader.setVec3("objectColor", reg.colors[e].color);
-//   	    }else {
-//          	// If no color component exists, force white so it isn't black
-//          	shader.setVec3("objectColor", glm::vec3(1.0f));
-//        }
-//
-//
-//        // 3. Render Mesh
-//        if (reg.renderables[e].mesh != nullptr) {
-//            
-//            // Check if this entity needs wireframe mode for either Mesh or Physics
-//            bool showMeshWire = reg.renderables[e].isWireframe;
-//            bool showPhysWire = (reg.hasPhysics[e] && reg.physics[e].isPhysicsWireframe);
-//
-//            if (showMeshWire || showPhysWire) {
-//                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-//            } else {
-//                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-//            }
-//
-//            reg.renderables[e].mesh->draw();
-//            
-//            // Reset to FILL so other UI/systems don't get stuck in line mode
-//            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-//        }    
-//
-//        // 4. Debug GL Errors
-//        GLenum err = glGetError();
-//        if (err != GL_NO_ERROR) {
-//            std::cout << "OpenGL Error after draw: " << err << std::endl;
-//        }
-//    }
-//}
+
+void PlayerSystem(Registry& registry, Camera& camera, float deltaTime) {
+    int numKeys;
+    const bool* state = SDL_GetKeyboardState(&numKeys);
+
+    // 1. Prepare camera vectors for movement
+    glm::vec3 forward = glm::normalize(glm::vec3(camera.front.x, 0.0f, camera.front.z));
+    glm::vec3 right = glm::normalize(camera.right);
+
+    for (size_t e = 0; e < registry.GetEntityCount(); ++e) {
+        if (registry.hasPlayerController[e] && registry.hasTransform[e]) {
+            PlayerControllerComponent& ctrl = registry.playerControllers[e];
+            Transform& t = registry.transforms[e];
+            
+            glm::vec3 moveDir(0.0f);
+
+            SDL_Scancode up    = SDL_GetScancodeFromKey(ctrl.keyUp, nullptr);
+            SDL_Scancode down  = SDL_GetScancodeFromKey(ctrl.keyDown, nullptr);
+            SDL_Scancode left  = SDL_GetScancodeFromKey(ctrl.keyLeft, nullptr);
+            SDL_Scancode right_key = SDL_GetScancodeFromKey(ctrl.keyRight, nullptr);
+
+            // 2. Use camera vectors instead of X/Z offsets
+            if (up != SDL_SCANCODE_UNKNOWN && state[up])       moveDir += forward;
+            if (down != SDL_SCANCODE_UNKNOWN && state[down])   moveDir -= forward;
+            if (left != SDL_SCANCODE_UNKNOWN && state[left])   moveDir -= right;
+            if (right_key != SDL_SCANCODE_UNKNOWN && state[right_key]) moveDir += right;
+
+            // if (glm::length(moveDir) > 0.0f) {
+            //     moveDir = glm::normalize(moveDir);
+            //     // 3. Apply with deltaTime for smooth, frame-rate independent movement
+            //     t.position += moveDir * ctrl.moveSpeed * deltaTime;
+            // }
+
+            // Only set velocity; do not touch transform position here!
+            if (glm::length(moveDir) > 0.0f) {
+                registry.velocities[e].linear = glm::normalize(moveDir) * ctrl.moveSpeed;
+            } else {
+                registry.velocities[e].linear = glm::vec3{0.0f, -9.8f, 0.0f};
+            }
+            
+        }
+    }
+}

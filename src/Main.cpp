@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
 Entity testEntity = registry.CreateEntity();
 registry.AddTransform(testEntity, { glm::vec3(-5.0f, 0.0f, 0.0f), glm::vec3(0.0f) });
 registry.AddVelocity(testEntity, glm::vec3(0.0f, -2.0f, 0.0f)); 
-registry.names[testEntity] = {"player"};
+registry.names[testEntity] = {"NPC"};
 
 registry.colors[testEntity].color = glm::vec3(1.0f, 1.0f, 1.0f); 
 registry.hasColor[testEntity] = true;
@@ -77,6 +77,11 @@ registry.hasRenderable[testEntity] = true;
             ImGui_ImplSDL3_ProcessEvent(&event);
             if (event.type == SDL_EVENT_QUIT) Engine::SetIsRunning(false);
 			
+			// Only listen for rebinds if the editor is waiting
+			if(editor.isWaitingForKey && event.type == SDL_EVENT_KEY_DOWN) {
+				editor.SetRebindKey(event.key.key);
+			}
+
 			if (event.type == SDL_EVENT_KEY_DOWN) {
 				if (event.key.scancode == SDL_SCANCODE_ESCAPE){
 				    if (gameState == EditorState::Playing) {
@@ -244,6 +249,15 @@ registry.hasRenderable[testEntity] = true;
         }	
 		
 		if (gameState == EditorState::Playing){
+			PlayerSystem(registry, editorCamera, deltaTime);
+			
+			//Find and follow entity with the camera
+			Entity player = FindPlayerEntity(registry);
+			if(player != -1){
+				// camera follow the player
+				CameraSystem(registry,player,editorCamera);
+			}
+		
 			MovementSystem(registry, deltaTime);
 			LifetimeSystem(registry, deltaTime);
 		}
