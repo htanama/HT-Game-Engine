@@ -294,6 +294,7 @@ registry.hasRenderable[testEntity] = true;
 	
 		// 2. UI Rendering Logic (ALWAYS run this, regardless of state)
 		editor.Begin();
+		editor.DrawReticle();
 		editor.Draw(editorCamera); // Handles the "Game View" window[cite: 17]
 		editor.End();
 			   

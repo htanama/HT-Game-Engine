@@ -36,6 +36,7 @@ private:
     bool m_lockX = false;
     bool m_lockY = false;
     bool m_lockZ = false;
+    bool showReticle = false;
 
     int SetupGrid(unsigned int& vao, unsigned int& vbo, float width, float step = 1.0f) {
         std::vector<float> vertices;
@@ -187,9 +188,31 @@ public:
         ImGui::SetNextItemWidth(-FLT_MIN);
 
 	}
+
+    void DrawReticle() {
+        // Use the Foreground DrawList to render on top of everything
+        ImDrawList* drawList = ImGui::GetForegroundDrawList();
+
+        // Get the window position and size of your "Scene" window 
+        // (Ensure you pass or have access to the Scene window's specific position)
+        ImVec2 pos = ImGui::GetWindowPos();
+        ImVec2 size = ImGui::GetWindowSize();
+
+        // Calculate center
+        ImVec2 center = ImVec2(pos.x + (size.x * 0.5f), pos.y + (size.y * 0.5f));
+
+        float len = 25.0f;
+        float thickness = 3.0f; 
+        ImU32 color = ImColor(0, 255, 0, 255); 
+
+        drawList->AddLine(ImVec2(center.x - len, center.y), ImVec2(center.x + len, center.y), color, thickness);
+        drawList->AddLine(ImVec2(center.x, center.y - len), ImVec2(center.x, center.y + len), color, thickness);
+    }
+
 	
     void Draw(Camera &editorCamera) 
-    {
+    {      
+
         // Dynamically get the size of the current UI window, not the whole application
         ImVec2 viewportSize = ImGui::GetContentRegionAvail();
        
@@ -356,7 +379,9 @@ public:
                                     ImGuiWindowFlags_NoNavFocus;
 
         
-        ImGui::Begin("Scene"); // ImGuiCond_FirstUseEver
+        ImGui::Begin("Scene"); // ImGuiCond_FirstUseEver           
+            
+
             ImGui::BeginChild("HierarchyChild", ImVec2(0, ImGui::GetContentRegionAvail().y * 0.5f), true);
             ImGui::Text("Hierarchy");
             
@@ -513,7 +538,7 @@ public:
             ImGui::EndChild();
         ImGui::End();
         
-  
+        
         
         ImGui::Begin("Inspector");
  			ImGui::Separator();
@@ -875,9 +900,12 @@ public:
                 }
 
                    
-            }
+            }    
+                  
+
         ImGui::End();
 
+        
         ImGui::Begin("Output Console");
 			float buttonWidth = ImGui::CalcTextSize("Clear").x + ImGui::GetStyle().FramePadding.x * 2.0f;
 			float availableWidth = ImGui::GetContentRegionAvail().x;
@@ -915,12 +943,14 @@ public:
             if (ImGui::Button("Origin")) {
                 requestCameraReset = true;
             }
-        ImGui::Columns(1);
+        ImGui::Columns(1);     
         ImGui::End();        
                        
         glDrawArrays(GL_LINES, 0, m_gridCount);
     }
 
+
+    
 
     void End() {
         ImGui::Render();
