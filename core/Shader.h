@@ -25,10 +25,20 @@ public:
         unsigned int fragment = compileShader(fShaderCode, GL_FRAGMENT_SHADER);
 
         // 3. Link Program
-        ID = glCreateProgram();
+        ID = glCreateProgram();        
+
         glAttachShader(ID, vertex);
         glAttachShader(ID, fragment);
+        
         glLinkProgram(ID);
+        GLint success = 0;
+        glGetProgramiv(ID, GL_LINK_STATUS, &success);
+        if (!success) {
+            char infoLog[1024];
+            glGetProgramInfoLog(ID, 1024, NULL, infoLog);
+            std::cerr << "LINKING FAILED: " << infoLog << std::endl;
+            throw std::runtime_error("Shader Link Error - Cannot start engine.");
+        }
 
         // Check for linking errors!
         checkCompileErrors(ID, "PROGRAM");

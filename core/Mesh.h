@@ -32,6 +32,7 @@ struct Texture {
     std::string type;
 };
 
+
 /**
  * The Mesh class handles the abstraction of GPU memory.
  * It supports three modes:
@@ -41,10 +42,10 @@ struct Texture {
  */
 class Mesh {
 private:
-    unsigned int m_VAO; // OpenGL handle for Vertex Array Object (stores state of vertex attributes and buffers) 
-    unsigned int m_VBO; // OpenGL handle for Vertex Buffer Object (stores vertex data in GPU memory)
+    unsigned int m_VAO = 0; // OpenGL handle for Vertex Array Object (stores state of vertex attributes and buffers) 
+    unsigned int m_VBO = 0; // OpenGL handle for Vertex Buffer Object (stores vertex data in GPU memory)
 
-    unsigned int m_EBO; // Element Buffer Object is an OpenGL buffer that stores indices to reference vertices in a VBO
+    unsigned int m_EBO = 0; // Element Buffer Object is an OpenGL buffer that stores indices to reference vertices in a VBO
     // allowing for efficient reuse of vertex data and optimized rendering of complex geometry.
 
     // Configures how the GPU reads our interleaved Vertex struct
@@ -85,8 +86,8 @@ public:
     // mesh data
     std::vector<Vertex>       vertices;
     std::vector<unsigned int> indices;
-    std::vector<Texture>      textures;
-
+    
+    // std::vector<Texture>      textures;
 
     // --- CONSTRUCTORS ---
     // Simple Constructor: line, triangle, or point cloud (not recommended for complex meshes)
@@ -170,7 +171,10 @@ public:
     }
 
     void draw() {
+        if (indices.empty()) return; // Safety check
         glBindVertexArray(m_VAO);
+        // Explicitly re-bind the EBO to be safe against state leakage
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO); 
         glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
     }

@@ -21,6 +21,9 @@ bool requestCameraReset;
 Renderer renderer;
 int* keyToRebind = nullptr; 
 
+// definition on Main.cpp
+void CheckGLError(const char* operation);
+
 class EditorLayer {
 private: 
     std::vector<float> gridVertices;
@@ -974,9 +977,7 @@ public:
                 requestCameraReset = true;
             }
         ImGui::Columns(1);     
-        ImGui::End();         
-
-        glDrawArrays(GL_LINES, 0, m_gridCount);
+        ImGui::End();                 
     }  
 
     void End() {
@@ -984,7 +985,8 @@ public:
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());  
     }
 
-    void Draw(Camera& camera, Shader& shader, float aspect) {       
+    // This handle gameview
+    void DrawGrid(Camera& camera, Shader& shader, float aspect) {       
         // 1. Setup Matrices
         glm::mat4 viewProj = camera.GetProjectionMatrix(aspect) * camera.GetViewMatrix();
       
