@@ -12,9 +12,12 @@ set(GLAD_DIR "${CMAKE_SOURCE_DIR}/glad")
 set(CORE_DIR "${CMAKE_SOURCE_DIR}/core")
 set(GLM_DIR "${CMAKE_SOURCE_DIR}/glm")
 set(UTILITY_DIR "${CMAKE_SOURCE_DIR}/utility")
+set(SOURCES_DIR "${CMAKE_SOURCE_DIR}/src")
+
 
 # Set Source Files
-set(PROJECT_SOURCES Main.cpp)
+
+set(PROJECT_SOURCES	${SOURCES_DIR}/Main.cpp)
 
 set(PROJECT_HEADERS
     ${CORE_DIR}/Camera.h ${CORE_DIR}/Engine.h ${CORE_DIR}/Log.h ${CORE_DIR}/Mesh.h 

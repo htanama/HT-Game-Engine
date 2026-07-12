@@ -19,6 +19,10 @@ extern Registry registry;
 static Entity selectedEntity;
 bool requestCameraReset;
 Renderer renderer;
+int* keyToRebind = nullptr; 
+
+// definition on Main.cpp
+void CheckGLError(const char* operation);
 
 class EditorLayer {
 private: 
@@ -35,6 +39,7 @@ private:
     bool m_lockX = false;
     bool m_lockY = false;
     bool m_lockZ = false;
+    bool isShowReticle = false;
 
     int SetupGrid(unsigned int& vao, unsigned int& vbo, float width, float step = 1.0f) {
         std::vector<float> vertices;
@@ -71,7 +76,10 @@ private:
     }
 	
 public:  
-    ~EditorLayer() {
+
+	bool isWaitingForKey = false;
+    
+	~EditorLayer() {
         glDeleteVertexArrays(1, &m_gridVAO);
         glDeleteBuffers(1, &m_gridVBO);
     }
@@ -84,6 +92,9 @@ public:
         ImGuiIO& io = ImGui::GetIO();
         io.FontGlobalScale = 1.2f;
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        
+        // add keyboard navigation 
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     
         ImGui_ImplSDL3_InitForOpenGL(window, context);
         ImGui_ImplOpenGL3_Init("#version 410");                
@@ -93,6 +104,13 @@ public:
         m_gridCount = SetupGrid(m_gridVAO, m_gridVBO, m_width);        
       
     }
+	
+	void SetRebindKey(SDL_Keycode key) {
+		if (isWaitingForKey && keyToRebind) {
+			*keyToRebind = key;
+			isWaitingForKey = false;
+		}
+	}
 
     void Begin() {
         ImGui_ImplOpenGL3_NewFrame();
@@ -173,9 +191,42 @@ public:
         ImGui::SetNextItemWidth(-FLT_MIN);
 
 	}
+
+    void DrawReticle() {
+        if (isShowReticle == false) {
+            return;
+        }
+        
+        // Use the Foreground DrawList to render on top of everything
+        ImDrawList* drawList = ImGui::GetForegroundDrawList();
+
+        // Get the window position and size of your "Scene" window 
+        // (Ensure you pass or have access to the Scene window's specific position)
+        ImVec2 pos = ImGui::GetWindowPos();
+        ImVec2 size = ImGui::GetWindowSize();
+
+
+        // Use GetCursorScreenPos to get the top-left of the usable area
+        // Use GetContentRegionAvail to get the actual drawable area size
+        //ImVec2 pos = ImGui::GetCursorScreenPos();
+        //ImVec2 size = ImGui::GetContentRegionAvail();
+
+        // Calculate center
+        ImVec2 center = ImVec2(pos.x + (size.x * 0.5f), pos.y + (size.y * 0.5f));
+
+        float len = 25.0f;
+        float thickness = 7.0f; 
+        ImU32 color = ImColor(255, 0, 0, 255); 
+
+        drawList->AddLine(ImVec2(center.x - len, center.y), ImVec2(center.x + len, center.y), color, thickness);
+        drawList->AddLine(ImVec2(center.x, center.y - len), ImVec2(center.x, center.y + len), color, thickness);            
+
+    }
+
 	
     void Draw(Camera &editorCamera) 
-    {
+    {      
+    
         // Dynamically get the size of the current UI window, not the whole application
         ImVec2 viewportSize = ImGui::GetContentRegionAvail();
        
@@ -235,7 +286,33 @@ public:
 
             if (ImGui::Button(" 2D ", ImVec2(buttonWidthOrigin, 0))) {
                 // TODO: Change to 2D Scene
+				ImGui::OpenPopup("2D Scene");				
             }
+			
+			ImGui::SetNextWindowSize(ImVec2(600,400), ImGuiCond_Always);
+            if (ImGui::BeginPopupModal("2D Scene", nullptr,
+                           ImGuiWindowFlags_AlwaysAutoResize))
+			{
+				ImGui::Text("Do you want to switch to 2D scene?");
+				ImGui::Separator();
+
+				if (ImGui::Button("Yes"))
+				{
+					//registry.DestroyEntity(entityToDelete);
+					//entityToDelete = (Entity)-1;
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::SameLine();
+
+				if (ImGui::Button("No"))
+				{
+					//entityToDelete = (Entity)-1;
+					ImGui::CloseCurrentPopup();
+				}
+
+				ImGui::EndPopup();
+			}        
 
             if (ImGui::Button(" 3D ", ImVec2(buttonWidthOrigin, 0))) {
                 // TODO: Change to 3D Scene
@@ -309,11 +386,13 @@ public:
                                     ImGuiWindowFlags_NoCollapse | 
                                     ImGuiWindowFlags_NoResize | 
                                     ImGuiWindowFlags_NoMove | 
-                                    ImGuiWindowFlags_NoBringToFrontOnFocus | 
+                                    ImGuiWindowFlags_NoBringToFrontOnFocus |
                                     ImGuiWindowFlags_NoNavFocus;
 
         
-        ImGui::Begin("Scene"); // ImGuiCond_FirstUseEver
+        ImGui::Begin("Scene"); // ImGuiCond_FirstUseEver           
+            
+
             ImGui::BeginChild("HierarchyChild", ImVec2(0, ImGui::GetContentRegionAvail().y * 0.5f), true);
             ImGui::Text("Hierarchy");
             
@@ -352,16 +431,20 @@ public:
 
             // to check the correct entity to delete
             static Entity entityToDelete = (Entity)-1;
+			
+            bool isDeletePopupWindow = false;
 
-            for (size_t index = 0; index < registry.hasTransform.size(); ++index) {
-                if (!registry.hasTransform[index]) continue;
-
+			// For loop search each entity. All entity must have Transform
+            for (size_t index = 0; index < registry.hasTransform.size(); ++index) { 
+                if (!registry.hasTransform[index]) continue;			
+			
+                // ImGui::PushID() prevent ID conflicts by pushing 
+                // a unique identifier onto the global ID stack.
                 ImGui::PushID((int)index);
-
                 // Retrieve name
                 std::string entityName = registry.hasName[index] ? registry.names[index].name : "Object " + std::to_string(index);
-
-                // Logic: If we are currently renaming THIS specific entity
+                               
+				// Logic: If we are currently renaming THIS specific entity
                 if (renamingEntity == (Entity)index) {
                     ImGui::SetKeyboardFocusHere();
                     if (ImGui::InputText("##rename", nameBuffer, sizeof(nameBuffer),
@@ -374,7 +457,11 @@ public:
                 }
                 else {
                     // Normal display mode
-                    if (ImGui::Selectable(entityName.c_str(), selectedEntity == (Entity)index)) {
+                    if (ImGui::Selectable(entityName.c_str(), selectedEntity == (Entity)index,
+						ImGuiSelectableFlags_SpanAvailWidth | 
+    					ImGuiSelectableFlags_AllowOverlap | 
+						ImGuiSelectableFlags_SelectOnNav)) 
+					{
                         selectedEntity = (Entity)index;
                     }
 
@@ -382,8 +469,8 @@ public:
                     if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(0)) {
                         renamingEntity = (Entity)index;
                         strncpy(nameBuffer, entityName.c_str(), sizeof(nameBuffer));
-                    }
-
+                    }                    
+                    
                     if (ImGui::BeginPopupContextItem()) {
                         if (ImGui::MenuItem("Rename")) {
                             renamingEntity = (Entity)index;
@@ -394,16 +481,54 @@ public:
                             Logger::Log("Entity copied.");
                         }
                         if (ImGui::MenuItem("Delete")) {
-                            entityToDelete = (Entity)index; // Set delete target
-                        }
-                        ImGui::EndPopup();
+                            // this window is to assign true value of isDeletePopupWindow
+                            // so the ImGui popup window can be shown due to PopupContext conflict					        
+                            isDeletePopupWindow = true;							
+                       	}                         									
+                        ImGui::EndPopup();                                                                
+                        
                     }
+
+                }// End of else                            
+                if(isDeletePopupWindow){
+                    ImGui::OpenPopup("Delete Entity");
+                    isDeletePopupWindow = false;
                 }
+                // Delete Entity Popup Window
+                if (ImGui::BeginPopupModal("Delete Entity", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                    ImGui::Text("Do you want to delete: %s", registry.names[index].name.c_str());
+                    ImGui::Separator();
+                    
+                    // Define explicit button widths (or use ImGui::CalcTextSize)
+                    float button_width = 80.0f; 
+                    float spacing = ImGui::GetStyle().ItemSpacing.x;
+                    // Calculate the combined total width of both buttons and the space between them
+                    float total_width = (button_width * 2.0f) + spacing;
+                    // Calculate the starting X position to center the block
+                    float available_width = ImGui::GetContentRegionAvail().x;
+                    float start_x = (available_width - total_width) * 0.5f;
+                    // Move the cursor and render the buttons
+                    ImGui::SetCursorPosX(start_x);
+
+                    if (ImGui::Button("Yes", ImVec2(button_width, 0.0f)))
+                    {                        
+                        entityToDelete = (Entity)index;
+                        ImGui::CloseCurrentPopup();
+                    }
+
+                    ImGui::SameLine();
+
+                    if (ImGui::Button("No", ImVec2(button_width, 0.0f)))
+                    {                        
+                        ImGui::CloseCurrentPopup();
+                    }
+                    ImGui::EndPopup();
+                }// End ImGui::BeginPopupModal                   
 
                 ImGui::PopID();
-            }
-
-            if (entityToDelete != (Entity)-1) {
+            }	            
+            // this is the logic to remove the selected entity
+			if (entityToDelete != (Entity)-1) { 
                 RequestDeleteEntity(registry, entityToDelete);
                 MeshManager::CleanupUnusedMeshes();
 
@@ -416,14 +541,15 @@ public:
                 Logger::Log("Total entities: " + std::to_string(registry.GetEntityCount()));
                 entityToDelete = (Entity)-1; // Reset target
             }
-
             ImGui::EndChild(); // end of Scene Hierarchy     
+
 
             ImGui::BeginChild("FileChild", ImVec2(0, 0), true);
             ImGui::Text("File System");
             ImGui::EndChild();
         ImGui::End();
-
+        
+        
         
         ImGui::Begin("Inspector");
  			ImGui::Separator();
@@ -431,6 +557,7 @@ public:
 				ImGui::OpenPopup("AddComponentPopup");
 			}
 
+            // Adding Component with Dropdown Selection
 			if (ImGui::BeginPopup("AddComponentPopup")) {
 				ImGui::Text("Select Component");
 				ImGui::Separator();
@@ -458,11 +585,17 @@ public:
                         registry.AddMeshComponent(selectedEntity, newComp);
                     }
                 }
+				
+				if (!registry.hasPlayerController[selectedEntity]) {
+					if (ImGui::Selectable("Player Controller")) {
+						registry.AddPlayerController(selectedEntity, 5.0f); // Set a default speed
+					}
+				}
 				ImGui::EndPopup();
 			}
-	   
+            
 			ImGui::Separator();
-
+            
 			if (ImGui::Button("Origin 0,0,0")) {
                 requestCameraReset = true;
             }
@@ -477,186 +610,203 @@ public:
                 Logger::Log("Reset Camera to origin");  
                 requestCameraReset = false; // Turn the flag off immediately
             }
-				
-			if (selectedEntity != -1) {
-				if(selectedEntity < registry.names.size()){
-					if (registry.hasName[selectedEntity]) {
-						// Display the name as read-only text
-						ImGui::Text("Entity Name:");
-						ImGui::SameLine();
-						ImGui::TextColored(ImVec4(1, 1, 0, 1), "%s", registry.names[selectedEntity].name.c_str());
-					}
-				}
-
-				// You could show the ID too, which is also read-only
-				ImGui::Text("Entity ID: %d", (int)selectedEntity);
-			} 
-
-            ImGui::Text("Transform Position");
-            if (selectedEntity != -1 && selectedEntity < registry.transforms.size() && registry.hasTransform[selectedEntity]) {
-                Transform& t = registry.transforms[selectedEntity];
-                // --- POSITION ---               
-                ImGui::Columns(3, nullptr, false);
-                ImGui::Text("X"); ImGui::NextColumn();
-                ImGui::Text("Y"); ImGui::NextColumn();
-                ImGui::Text("Z"); ImGui::NextColumn();
-                ImGui::Columns(1); // Close columns so the sliders aren't forced into them
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::DragFloat3("##Position", &t.position.x, 0.1f);
-				
-				ImGui::Separator();
-
-				// --- LOCATE / RESET ---
-                if (ImGui::Button("Locate Entity")) {
-                    // Place the camera a short distance behind/above the entity,
-                    // then use the Camera's own SetDirection() to aim at it.
-                    // (SetDirection handles the pitch sign convention AND calls
-                    // UpdateCameraVectors() so 'front' is refreshed immediately.)
-                    glm::vec3 offset(0.0f, 2.0f, 5.0f);
-                    editorCamera.position = t.position + offset;
-                    editorCamera.SetDirection(t.position - editorCamera.position);
-                }
-
-				ImGui::Separator();	
-				
-                // --- ROTATION ---
-                ImGui::Text("Rotation");
-                ImGui::Columns(3, nullptr, false);
-                ImGui::Text("X"); ImGui::NextColumn();
-                ImGui::Text("Y"); ImGui::NextColumn();
-                ImGui::Text("Z"); ImGui::NextColumn();
-                ImGui::Columns(1);
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::DragFloat3("##Rotation", &t.rotation.x, 1.0f);
-				
-				ImGui::Separator();
-                // --- SCALE ---
-                ImGui::Text("Scale");
-                ImGui::Columns(3, nullptr, false);
-                ImGui::Text("X"); ImGui::NextColumn();
-                ImGui::Text("Y"); ImGui::NextColumn();
-                ImGui::Text("Z"); ImGui::NextColumn();
-                ImGui::Columns(1);
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::DragFloat3("##Scale", &t.scale.x, 0.5f);
-				
-				ImGui::Separator();
-				DrawTransformUI(t);
-			
-                static bool checked = false;
-                ImGui::Checkbox("Wireframe", &checked);
-                // SAFE GUARD: Check if the index is valid BEFORE doing anything
-                if (selectedEntity >= 0 && selectedEntity < (int)registry.renderables.size()) {
-                    // if checkbox is on, change the mesh to wire frame globally not individual model.
-                    // find entity that can be render on the screen to see if it is wireframe or fill polygon
-                    for (Renderable& object : registry.renderables) {
-                        // Find the object
-                        if (&object == &registry.renderables[selectedEntity]) {
-                            // Assign the value (this is the "toggle")
-                            // If checked is true, object becomes true. If checked is false, it becomes false.
-                            object.isWireframe = checked;
-                            // Stop searching
-                            break;
+			if (ImGui::CollapsingHeader("Entity Name", ImGuiTreeNodeFlags_DefaultOpen)) {	
+                if (selectedEntity != -1) {
+                    if(selectedEntity < registry.names.size()){
+                        if (registry.hasName[selectedEntity]) {
+                            // Display the name as read-only text
+                            ImGui::Text("Entity Name:");
+                            ImGui::SameLine();
+                            ImGui::TextColored(ImVec4(1, 1, 0, 1), "%s", registry.names[selectedEntity].name.c_str());
                         }
-
                     }
-                }
 
-                if (selectedEntity != -1 && selectedEntity < registry.colors.size() && registry.hasColor[selectedEntity]) {
-                    ColorComponent& c = registry.colors[selectedEntity];
+                    // You could show the ID too, which is also read-only
+                    ImGui::Text("Entity ID: %d", (int)selectedEntity);
+                } 
+            }
 
-                    // ColorEdit3 takes a float array (a pointer to the first of 3 floats)
-                    if (ImGui::ColorEdit3("Object Color", &c.color.x)) {
-                        // This block runs automatically whenever the user changes the color.
-                        // If your renderer is already using registry.colors[e].color
-                        // in its main loop, this will work instantly!
+            Transform& t = registry.transforms[selectedEntity]; 
+
+            if (ImGui::Button("Locate Entity")) {
+                // Place the camera a short distance behind/above the entity,
+                // then use the Camera's own SetDirection() to aim at it.
+                // (SetDirection handles the pitch sign convention AND calls
+                // UpdateCameraVectors() so 'front' is refreshed immediately.)
+                glm::vec3 offset(0.0f, 5.0f, 6.0f);
+                editorCamera.position = t.position + offset;
+                editorCamera.SetDirection(t.position - editorCamera.position);
+            }
+            
+            ImGui::Text("Transform Position");
+            if (selectedEntity != -1 && selectedEntity < registry.transforms.size() && registry.hasTransform[selectedEntity]) {               
+                if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {                            
+                    // --- POSITION ---               
+                    ImGui::Columns(3, nullptr, false);
+                    ImGui::Text("X"); ImGui::NextColumn();
+                    ImGui::Text("Y"); ImGui::NextColumn();
+                    ImGui::Text("Z"); ImGui::NextColumn();
+                    ImGui::Columns(1); // Close columns so the sliders aren't forced into them
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::DragFloat3("##Position", &t.position.x, 0.1f);
+                    
+                    ImGui::Separator();                   
+                    ImGui::Separator();	
+                        
+                    // --- ROTATION ---
+                    ImGui::Text("Rotation");
+                    ImGui::Columns(3, nullptr, false);
+                    ImGui::Text("X"); ImGui::NextColumn();
+                    ImGui::Text("Y"); ImGui::NextColumn();
+                    ImGui::Text("Z"); ImGui::NextColumn();
+                    ImGui::Columns(1);
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::DragFloat3("##Rotation", &t.rotation.x, 1.0f);
+                
+                
+                    if (ImGui::CollapsingHeader("Scale Setting", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        ImGui::Separator();
+                        // --- SCALE ---
+                        ImGui::Text("Scale");
+                        ImGui::Columns(3, nullptr, false);
+                        ImGui::Text("X"); ImGui::NextColumn();
+                        ImGui::Text("Y"); ImGui::NextColumn();
+                        ImGui::Text("Z"); ImGui::NextColumn();
+                        ImGui::Columns(1);
+                        ImGui::SetNextItemWidth(-FLT_MIN);
+                        ImGui::DragFloat3("##Scale", &t.scale.x, 0.5f);
                     }
-                }
+                } // End Transform Collapsing
+
+                ImGui::Separator();
+                ImGui::Separator();
+
+                if (ImGui::CollapsingHeader("Locked Movement", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    
+                    DrawTransformUI(t);
+                
+                    static bool checked = false;
+                    ImGui::Checkbox("Wireframe", &checked);
+                    // SAFE GUARD: Check if the index is valid BEFORE doing anything
+                    if (selectedEntity >= 0 && selectedEntity < (int)registry.renderables.size()) {
+                        // if checkbox is on, change the mesh to wire frame globally not individual model.
+                        // find entity that can be render on the screen to see if it is wireframe or fill polygon
+                        for (Renderable& object : registry.renderables) {
+                            // Find the object
+                            if (&object == &registry.renderables[selectedEntity]) {
+                                // Assign the value (this is the "toggle")
+                                // If checked is true, object becomes true. If checked is false, it becomes false.
+                                object.isWireframe = checked;
+                                // Stop searching
+                                break;
+                            }
+
+                        }
+                    }
+
+                    if (selectedEntity != -1 && selectedEntity < registry.colors.size() && registry.hasColor[selectedEntity]) {
+                        ColorComponent& c = registry.colors[selectedEntity];
+
+                        // ColorEdit3 takes a float array (a pointer to the first of 3 floats)
+                        if (ImGui::ColorEdit3("Object Color", &c.color.x)) {
+                            // This block runs automatically whenever the user changes the color.
+                            // If your renderer is already using registry.colors[e].color
+                            // in its main loop, this will work instantly!
+                        }
+                    }   
+                }  // Locked Movement Collapsed End              
                 
                 ImGui::Separator();
-				ImGui::Text("Texture Settings");
+                ImGui::Separator();
 
-				// Create a buffer for the file path (static so it persists)
-				char pathBuffer[128] = "assets/wood.png"; 
-				
-				if (selectedEntity != -1) {
-					// 1. If we have a valid selection, update the buffer from the entity's data
-					if (registry.hasTexture[selectedEntity]) {
-						std::string path = registry.textures[selectedEntity].path;
-						strncpy(pathBuffer, path.c_str(), sizeof(pathBuffer));
-					} else {
-						// Fallback for entities without textures
-						strncpy(pathBuffer, "No texture", sizeof(pathBuffer));
-					}
+                if (ImGui::CollapsingHeader("Texture Setting", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    ImGui::Text("Texture Settings");        
+                    // Create a buffer for the file path (static so it persists)
+                    char pathBuffer[128] = "assets/wood.png"; 
+                        
+                    if (selectedEntity != -1) {
+                        // 1. If we have a valid selection, update the buffer from the entity's data
+                        if (registry.hasTexture[selectedEntity]) {
+                            std::string path = registry.textures[selectedEntity].path;
+                            strncpy(pathBuffer, path.c_str(), sizeof(pathBuffer));
+                        } else {
+                            // Fallback for entities without textures
+                            strncpy(pathBuffer, "No texture", sizeof(pathBuffer));
+                        }
 
-					// 2. Render the UI
-					if (ImGui::InputText("Path", pathBuffer, sizeof(pathBuffer))) {
-						// 3. Optional: If the user types in the box, update your registry component here
-						if (registry.hasTexture[selectedEntity]) {
-							registry.textures[selectedEntity].path = std::string(pathBuffer);
-						}
-					}
-				}
+                        // 2. Render the UI
+                        if (ImGui::InputText("Path", pathBuffer, sizeof(pathBuffer))) {
+                            // 3. Optional: If the user types in the box, update your registry component here
+                            if (registry.hasTexture[selectedEntity]) {
+                                registry.textures[selectedEntity].path = std::string(pathBuffer);
+                            }
+                        }
+                    }
 
-				if (ImGui::Button("Browse...")) {					
-					SDL_ShowOpenFileDialog(TextureCallback, this, m_window, nullptr, 0, nullptr, false);
-					Logger::Log("Browse for texture files: ");
-				}
-				
-				ImGui::SameLine();
-				
-				if (ImGui::Button("Apply Texture")) {
-					TextureComponent textureComponent;
-					textureComponent.textureID = MeshManager::LoadTexture(pathBuffer);
-					//textureComponent.textureID = MeshManager::LoadTextureToOpenGL(pathBuffer);
-					textureComponent.useTexture = true; 
-					textureComponent.path = pathBuffer; // Save the asset path so SceneSerializer can reload it later
-					registry.AddTexture(selectedEntity, textureComponent);
- 					registry.hasTexture[selectedEntity] = true;					
-
-				}
-				
-				ImGui::SameLine();
-
-				// 3. Remove Texture Button
-				if (ImGui::Button("Remove")) {
-					if (selectedEntity != -1 && registry.hasTexture[selectedEntity]) {
-						// 1. Tell MeshManager to handle the GPU cleanup
-						// We pass the ID so it can decrement references or delete the texture object
-						MeshManager::RemoveTexture(registry.textures[selectedEntity].textureID);
-						
-						// 2. Clear the component data
-						registry.textures[selectedEntity].useTexture = false;
-						registry.hasTexture[selectedEntity] = false;
-						registry.textures[selectedEntity].textureID = 0; // Reset ID to 0
-						
-						Logger::Log("Texture removed from entity " + std::to_string(selectedEntity));
-					}
-				}
-			
-				if (ImGui::Checkbox("enable collision", &registry.physics[selectedEntity].isEnabled)) {
-					// AddPhysics both resizes the physics vector safely and sets
-					// hasPhysics[selectedEntity] = true, so MovementSystem's
-					// (hasPhysics && isEnabled) check actually passes.
-					registry.AddPhysics(selectedEntity, { registry.physics[selectedEntity].isEnabled });
-				}
-
-								
-				// Adding the Velocity UI to the Inspector
-				if (registry.hasVelocity[selectedEntity]) {
-                    ImGui::Separator();
-                    ImGui::Text("Velocity Settings");
+                    if (ImGui::Button("Browse...")) {					
+                        SDL_ShowOpenFileDialog(TextureCallback, this, m_window, nullptr, 0, nullptr, false);
+                        Logger::Log("Browse for texture files: ");
+                    }
                     
-                    // Linear Velocity
-                    ImGui::Text("Linear:");
-                    ImGui::DragFloat3("##Linear", &registry.velocities[selectedEntity].linear.x, 0.1f);
+                    ImGui::SameLine();
                     
-                    // Angular Velocity
-                    ImGui::Text("Angular (Deg/s):");
-                    ImGui::DragFloat3("##Angular", &registry.velocities[selectedEntity].angular.x, 1.0f);
-                    
-                    if (ImGui::Button("Remove Velocity")) {
-                        registry.hasVelocity[selectedEntity] = false;
+                    if (ImGui::Button("Apply Texture")) {
+                        TextureComponent textureComponent;
+                        textureComponent.textureID = MeshManager::LoadTexture(pathBuffer);
+                        //textureComponent.textureID = MeshManager::LoadTextureToOpenGL(pathBuffer);
+                        textureComponent.useTexture = true; 
+                        textureComponent.path = pathBuffer; // Save the asset path so SceneSerializer can reload it later
+                        registry.AddTexture(selectedEntity, textureComponent);
+                        registry.hasTexture[selectedEntity] = true;					
+
+                    }
+                    ImGui::SameLine();
+                    // 3. Remove Texture Button
+                    if (ImGui::Button("Remove")) {
+                        if (selectedEntity != -1 && registry.hasTexture[selectedEntity]) {
+                            // 1. Tell MeshManager to handle the GPU cleanup
+                            // We pass the ID so it can decrement references or delete the texture object
+                            MeshManager::RemoveTexture(registry.textures[selectedEntity].textureID);
+                            
+                            // 2. Clear the component data
+                            registry.textures[selectedEntity].useTexture = false;
+                            registry.hasTexture[selectedEntity] = false;
+                            registry.textures[selectedEntity].textureID = 0; // Reset ID to 0
+                            
+                            Logger::Log("Texture removed from entity " + std::to_string(selectedEntity));
+                        }
+                    } 
+                }// End Texture Collapsing                                                   
+            
+                if (ImGui::CollapsingHeader("Enabled Collision", ImGuiTreeNodeFlags_DefaultOpen)) {
+                    if (ImGui::Checkbox("enable collision", &registry.physics[selectedEntity].isEnabled)) {
+                        // AddPhysics both resizes the physics vector safely and sets
+                        // hasPhysics[selectedEntity] = true, so MovementSystem's
+                        // (hasPhysics && isEnabled) check actually passes.
+                        registry.AddPhysics(selectedEntity, { registry.physics[selectedEntity].isEnabled });
+                    }
+                }
+
+                // ADDING COMPONENT ARE HERE AFTER YOU MADE THE SELECTION TO ADD THE COMPONENT
+                // This is where the component will be added after the adding component selection is chosen. 
+                
+                // Adding the Velocity UI to the Inspector                
+                if (registry.hasVelocity[selectedEntity]) {
+                    if (ImGui::CollapsingHeader("Velocity Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        ImGui::Separator();
+                        ImGui::Text("Velocity Settings");
+                        
+                        // Linear Velocity
+                        ImGui::Text("Linear:");
+                        ImGui::DragFloat3("##Linear", &registry.velocities[selectedEntity].linear.x, 0.1f);
+                        
+                        // Angular Velocity
+                        ImGui::Text("Angular (Deg/s):");
+                        ImGui::DragFloat3("##Angular", &registry.velocities[selectedEntity].angular.x, 1.0f);
+                        
+                        if (ImGui::Button("Remove Velocity")) {
+                            registry.hasVelocity[selectedEntity] = false;
+                        }
                     }
                 }
 
@@ -681,30 +831,114 @@ public:
                     
                     const char* shapes[] = { "Cube", "Sphere", "Cylinder", "Capsule", "Pyramid" };
                     int current = (int)mc.type;
+                    if (ImGui::CollapsingHeader("Shape Selection ", ImGuiTreeNodeFlags_DefaultOpen)) {
 
-                    if (ImGui::Combo("Shape", &current, shapes, IM_ARRAYSIZE(shapes))) {
-                        mc.type = (MeshType)current;                                              
-                        
-                        // 1. Create the new mesh
-                        mc.mesh = MeshManager::CreateMeshFromType(mc.type); 
-                        
-                        // 2. IMPORTANT: Update the Renderable component so the renderer picks up the change
-                        if (registry.hasRenderable[selectedEntity]) {
-                            registry.renderables[selectedEntity].mesh = mc.mesh;
-                        } else {
-                            // If it didn't have a renderable, add one
-                            registry.AddRenderable(selectedEntity, { mc.mesh });
+                        if (ImGui::Combo("Shape", &current, shapes, IM_ARRAYSIZE(shapes))) {
+                            mc.type = (MeshType)current;                                              
+                            
+                            // 1. Create the new mesh
+                            mc.mesh = MeshManager::CreateMeshFromType(mc.type); 
+                            
+                            // 2. IMPORTANT: Update the Renderable component so the renderer picks up the change
+                            if (registry.hasRenderable[selectedEntity]) {
+                                registry.renderables[selectedEntity].mesh = mc.mesh;
+                            } else {
+                                // If it didn't have a renderable, add one
+                                registry.AddRenderable(selectedEntity, { mc.mesh });
+                            }
+                            
                         }
-						
-					}
-					if (ImGui::Button("Remove Mesh")) {
-						registry.hasMesh[selectedEntity] = false;
-					}
-						
-                }
-            }          
-        ImGui::End();
+                        if (ImGui::Button("Remove Mesh")) {
+                            registry.hasMesh[selectedEntity] = false;
+                        }
 
+                    }
+            
+                }
+                
+                // Adding PlayerControllerComponent 
+                if (registry.hasPlayerController[selectedEntity]) {
+                    ImGui::Separator();
+                    //ImGui::Text("Player Controller Settings");
+                    if (ImGui::CollapsingHeader("Player Controller Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+                        ImGui::DragFloat("Move Speed", &registry.playerControllers[selectedEntity].moveSpeed, 0.1f);
+                        
+                        // --- KEY BINDINGS UI ---
+                        ImGui::Text("Key Bindings");
+                        
+                        // Helper lambda to make the code cleaner for 4 keys
+                        auto RebindButton = [&](const char* label, int* key) {
+                            ImGui::Text("%s: %s", label, SDL_GetKeyName(*key));
+                            ImGui::SameLine();
+                            if (ImGui::Button(("Rebind##" + std::string(label)).c_str())) {
+                                keyToRebind = key;
+                                isWaitingForKey = true;
+                            }
+                        };
+
+                        RebindButton("Up",    &registry.playerControllers[selectedEntity].keyUp);
+                        RebindButton("Down",  &registry.playerControllers[selectedEntity].keyDown);
+                        RebindButton("Left",  &registry.playerControllers[selectedEntity].keyLeft);
+                        RebindButton("Right", &registry.playerControllers[selectedEntity].keyRight);
+
+                        // --- MOUSE OPTIONS ---
+                        ImGui::Separator();
+                        ImGui::Text("Mouse Settings");
+                        ImGui::Checkbox("Use Mouse Look", &registry.playerControllers[selectedEntity].useMouseLook);
+                        
+                        ImGui::Separator();
+                        ImGui::Separator();
+                        
+                        ImGui::Text("Reticle Setting");
+                        ImGui::Checkbox("Reticle",&isShowReticle);
+
+
+                        // If enabled, allow them to choose the button
+                        if (registry.playerControllers[selectedEntity].useMouseLook) {
+                            const char* mouseButtons[] = { "Left", "Middle", "Right", "X1", "X2" };
+                            int currentButton = registry.playerControllers[selectedEntity].mouseLookButton - 1; // SDL buttons are 1-based
+                            if (ImGui::Combo("Look Button", &currentButton, mouseButtons, IM_ARRAYSIZE(mouseButtons))) {
+                                registry.playerControllers[selectedEntity].mouseLookButton = currentButton + 1;
+                            }
+                        }
+
+                    }
+
+                    // Game Mode Option for First Person View or Thrid Person View
+                    if (selectedEntity != (Entity)-1 && registry.hasPlayerController[selectedEntity]) {
+                        PlayerControllerComponent& ctrl = registry.playerControllers[selectedEntity];
+
+                        if (ImGui::CollapsingHeader("Player Controller", ImGuiTreeNodeFlags_DefaultOpen)) {
+                            // Define the items for the dropdown
+                            const char* viewModes[] = { "First Person (FPS)", "Third Person" };
+                            
+                            // Map the boolean to an integer index (0 = FPS, 1 = 3rd Person)
+                            int currentItem = ctrl.isThirdPerson ? 1 : 0;
+                            
+                            if (ImGui::Combo("Camera View", &currentItem, viewModes, IM_ARRAYSIZE(viewModes))) {
+                                // Update the boolean based on the selection
+                                ctrl.isThirdPerson = (currentItem == 1);
+                                Logger::Log(ctrl.isThirdPerson ? "Switched to Third Person" : "Switched to FPS");
+                            }
+
+                            if (ImGui::CollapsingHeader("Player Camera Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+                                ImGui::DragFloat3("3rd Person Offset", &ctrl.thirdPersonOffset.x, 0.1f);
+                                ImGui::DragFloat3("FPS Offset", &ctrl.fpsOffset.x, 0.1f);
+                            }
+                        }
+                        
+                    }
+
+                    if (ImGui::Button("Remove Player Controller")) {
+                        registry.hasPlayerController[selectedEntity] = false;
+                    }
+                }
+                   
+            }// Selected Entity End HERE 
+                  
+        ImGui::End();// Inspector End HERE
+
+        
         ImGui::Begin("Output Console");
 			float buttonWidth = ImGui::CalcTextSize("Clear").x + ImGui::GetStyle().FramePadding.x * 2.0f;
 			float availableWidth = ImGui::GetContentRegionAvail().x;
@@ -742,19 +976,17 @@ public:
             if (ImGui::Button("Origin")) {
                 requestCameraReset = true;
             }
-        ImGui::Columns(1);
-        ImGui::End();        
-                       
-        glDrawArrays(GL_LINES, 0, m_gridCount);
-    }
-
+        ImGui::Columns(1);     
+        ImGui::End();                 
+    }  
 
     void End() {
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());  
     }
 
-    void Draw(Camera& camera, Shader& shader, float aspect) {       
+    // This handle gameview
+    void DrawGrid(Camera& camera, Shader& shader, float aspect) {       
         // 1. Setup Matrices
         glm::mat4 viewProj = camera.GetProjectionMatrix(aspect) * camera.GetViewMatrix();
       

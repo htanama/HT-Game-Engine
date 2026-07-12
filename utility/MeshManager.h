@@ -4,6 +4,7 @@
 #include <algorithm>
 #include "utility/3DShapeBuilder.h"
 #include "core/Mesh.h"
+#include "core/Log.h"
 #include <SDL3_image/SDL_image.h>
 #include "utility/stb_image.h"
 

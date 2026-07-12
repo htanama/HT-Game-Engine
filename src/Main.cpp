@@ -9,6 +9,8 @@
 #include "core/ECS.h"
 #include "core/Systems.h"
 
+#include <cassert> // Required for assert
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "utility/stb_image.h"
 
@@ -24,20 +26,86 @@ static glm::vec3 initialMouseWorldPos(0.0f);
 bool isDragging = false;
 
 
+void CheckGLError(const char* operation) {
+    GLenum err = glGetError();
+    while (err != GL_NO_ERROR) {
+		Logger::Log("OpenGL Error: " + std::to_string(err) + " during " + operation);
+        std::cerr << "OpenGL Error: " << err << " during " << operation << std::endl;
+        err = glGetError();
+    }
+}
+
+void APIENTRY GLDebugMessageCallback(GLenum source, GLenum type, GLuint id, GLenum severity, 
+                                    GLsizei length, const GLchar* message, const void* userParam) {
+    if (type == GL_DEBUG_TYPE_ERROR) {
+        Logger::Log("GL CALLBACK: ERROR type = 0x" + std::to_string(type) + ", message = " + std::string(message));
+        std::cerr << "GL CALLBACK: " << message << std::endl;
+        
+        // OPTION A: Hard stop. If running under a debugger, it breaks exactly here.
+        // On Windows/MSVC: __debugbreak();
+        
+		// On Linux/GCC: __builtin_trap();
+		__builtin_trap();
+        
+        // OPTION B: Standard C++ Assert (Works everywhere)
+        // This will instantly crash the program and print the call stack to the terminal.
+        assert(false && "OpenGL Error Triggered! Check the terminal/log for details.");
+    }
+}
+
 int main(int argc, char* argv[]) {        
     
     SDL_Init(SDL_INIT_VIDEO);   
-    
+   
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+ 
     SDL_Window* window = SDL_CreateWindow("HT Game Engine", 
         renderer.GetWindowWidth(), 
         renderer.GetWindowHeight(), 
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
     );
 
+	if (!window) {
+        std::cerr << "Failed to Create Window: " << SDL_GetError() << std::endl;
+        SDL_Quit();
+        return -1;
+    }
+
+	// Create the OpenGL Context bound to our Window
     SDL_GLContext context = SDL_GL_CreateContext(window);
-    gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress);  
-   
-    Shader myShader("shaders/opengl_vertex.glsl", "shaders/opengl_fragment.glsl");
+    if (!context) {
+        std::cerr << "Failed to Create OpenGL Context: " << SDL_GetError() << std::endl;
+        SDL_GL_DestroyContext(context);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+
+  	// Initialize GLAD by feeding it SDL's function loader address
+    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
+        std::cerr << "Failed to Initialize GLAD OpenGL Loader!" << std::endl;
+        SDL_GL_DestroyContext(context);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+	
+	// 1. Enable the debug output feature in the OpenGL driver
+	glEnable(GL_DEBUG_OUTPUT); 
+
+	// 2. Ensure the callback is triggered synchronously (on the same thread as the command)
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS); 
+
+	// 3. Register your callback function
+	glDebugMessageCallback(GLDebugMessageCallback, 0);
+	
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+    
+	Shader myShader("shaders/opengl_vertex.glsl", "shaders/opengl_fragment.glsl");
     Shader gridShader("shaders/grid_vertex.glsl", "shaders/grid_fragment.glsl");
 
 	EditorLayer editor;
@@ -53,18 +121,18 @@ int main(int argc, char* argv[]) {
     Uint64 lastTime = SDL_GetTicks();          
 
 
-	// Create test entity
-Entity testEntity = registry.CreateEntity();
-registry.AddTransform(testEntity, { glm::vec3(-5.0f, 0.0f, 0.0f), glm::vec3(0.0f) });
-registry.AddVelocity(testEntity, glm::vec3(0.0f, -2.0f, 0.0f)); 
-registry.names[testEntity] = {"player"};
-
-registry.colors[testEntity].color = glm::vec3(1.0f, 1.0f, 1.0f); 
-registry.hasColor[testEntity] = true;
-registry.hasVelocity[testEntity] = true;
-std::shared_ptr<Mesh> meshInstance = MeshManager::CreateNewCubeMesh();
-registry.renderables[testEntity].mesh = meshInstance;
-registry.hasRenderable[testEntity] = true;
+// Create test entity
+//Entity testEntity = registry.CreateEntity();
+//registry.AddTransform(testEntity, { glm::vec3(-5.0f, 0.0f, 0.0f), glm::vec3(0.0f) });
+//registry.AddVelocity(testEntity, glm::vec3(0.0f, -2.0f, 0.0f)); 
+//registry.names[testEntity] = {"NPC"};
+//
+//registry.colors[testEntity].color = glm::vec3(1.0f, 1.0f, 1.0f); 
+//registry.hasColor[testEntity] = true;
+//registry.hasVelocity[testEntity] = true;
+//std::shared_ptr<Mesh> meshInstance = MeshManager::CreateNewCubeMesh();
+//registry.renderables[testEntity].mesh = meshInstance;
+//registry.hasRenderable[testEntity] = true;
 
 	
     while (Engine::isRunning) {
@@ -74,9 +142,15 @@ registry.hasRenderable[testEntity] = true;
         lastTime = currentTime;          
 
         while (SDL_PollEvent(&event)) {
+			
             ImGui_ImplSDL3_ProcessEvent(&event);
             if (event.type == SDL_EVENT_QUIT) Engine::SetIsRunning(false);
 			
+			// Only listen for rebinds if the editor is waiting
+			if(editor.isWaitingForKey && event.type == SDL_EVENT_KEY_DOWN) {
+				editor.SetRebindKey(event.key.key);
+			}
+
 			if (event.type == SDL_EVENT_KEY_DOWN) {
 				if (event.key.scancode == SDL_SCANCODE_ESCAPE){
 				    if (gameState == EditorState::Playing) {
@@ -158,10 +232,11 @@ registry.hasRenderable[testEntity] = true;
 						float my = (float)event.button.y;
 
 						Ray ray = editorCamera.ScreenToWorldRay(mx, my, renderer.currentWindowWidth, renderer.currentWindowHeight);
-						selectedEntity = PickEntity(ray, registry);
 
 						if (selectedEntity != -1) {
 							isDragging = true;
+							
+							selectedEntity = PickEntity(ray, registry);
 							
 							// Store the starting state
 						    initialEntityPosition = registry.transforms[selectedEntity].position;
@@ -244,51 +319,57 @@ registry.hasRenderable[testEntity] = true;
         }	
 		
 		if (gameState == EditorState::Playing){
+			PlayerSystem(registry, editorCamera, deltaTime);
+			
+			//Find and follow entity with the camera
+			Entity player = FindPlayerEntity(registry);
+			if(player != -1){
+				// camera follow the player
+				CameraSystem(registry,player,editorCamera);
+			}
+		
 			MovementSystem(registry, deltaTime);
 			LifetimeSystem(registry, deltaTime);
 		}
 	
-        float currentAspectRatio = (float)renderer.currentWindowWidth / renderer.currentWindowHeight;        
-
-        // Render Game Scene
+        float currentAspectRatio = (float)renderer.currentWindowWidth / renderer.currentWindowHeight;               
+		
+	    // Render Game Scene
         renderer.DrawClearScreen(0.45f, 0.81f, 0.97f, 1.0f);        
         
-        // Render solid surface 
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
         // Reset pixels to background color and resets distance to draw obj correctly front to back (depth buffer)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
         // render objects closer to the camera appear in front of objects further away
         glEnable(GL_DEPTH_TEST);
-        
-		// Clear and Render the scene (Used by both modes)
-		renderer.DrawClearScreen(0.45f, 0.81f, 0.97f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glEnable(GL_DEPTH_TEST);
 
+        // Render solid surface 
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	
 		myShader.use();
 		myShader.setMat4("view", editorCamera.GetViewMatrix());
 		myShader.setMat4("projection", editorCamera.GetProjectionMatrix(currentAspectRatio));
-		RenderSystem(registry, myShader);
+
+		RenderSystem(registry, myShader);		
 
 
 		// Only draw the grid when in Editor mode
 		if (gameState == EditorState::Editor) {		
-			editor.Draw(editorCamera, gridShader, currentAspectRatio);
+			editor.DrawGrid(editorCamera, gridShader, currentAspectRatio);			
 		}
-	
-		// 2. UI Rendering Logic (ALWAYS run this, regardless of state)
-		editor.Begin();
-		editor.Draw(editorCamera); // Handles the "Game View" window[cite: 17]
-		editor.End();
-			   
 
-        GLenum err = glGetError();
-        if (err != GL_NO_ERROR) {
-            Logger::Log("OpenGL Error: " + std::to_string(err) + " detected in RenderLoop");
-        }
-                
+		// UI Rendering Logic (ALWAYS run this, regardless of state)
+		editor.Begin();		
+		//editor.DrawReticle();
+		editor.Draw(editorCamera); // Handles the "Game View" window
+		CheckGLError("After Draw editor.Draw()");
+		editor.End();				   
+
+        // GLenum err = glGetError();
+        // if (err != GL_NO_ERROR) {
+        //     Logger::Log("OpenGL Error: " + std::to_string(err) + " detected in RenderLoop");
+        // }
+
         SDL_GL_SwapWindow(window);           
     }
 

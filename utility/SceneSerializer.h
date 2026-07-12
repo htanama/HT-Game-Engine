@@ -3,8 +3,6 @@
 #include <fstream>
 #include "json.hpp"
 
-using json = nlohmann::json;
-
 // NOTE: TextureComponent (in Components.h) needs a `std::string path;` member
 // alongside `textureID` and `useTexture`. Without it there's no way to reload
 // the texture from disk after a restart -- textureID is just a runtime GPU
@@ -14,14 +12,14 @@ class SceneSerializer {
 public:
     // Saves all active entities into a JSON file
     static void SaveScene(Registry& reg, const std::string& filepath) {
-        json scene;
+        nlohmann::json scene;
 
         // Loop through all entities
         for (size_t i = 0; i < reg.hasTransform.size(); ++i) {
             // Only save if the entity is actually active
             if (!reg.hasTransform[i] && !reg.hasRenderable[i]) continue;
 
-            json entity;
+            nlohmann::json entity;
             entity["id"] = i; // Save ID to maintain references
 
             // DYNAMIC SERIALIZATION: 
@@ -109,6 +107,23 @@ public:
                 }
                 entity["meshName"] = meshName;
             }
+            
+            
+            if (reg.hasPlayerController[i]) {
+                entity["playerController"] = {
+                    {"moveSpeed", reg.playerControllers[i].moveSpeed},
+                    {"isControlled", reg.playerControllers[i].isControlled},
+                    {"isThirdPerson", reg.playerControllers[i].isThirdPerson},
+                    {"keyUp", reg.playerControllers[i].keyUp},
+                    {"keyDown", reg.playerControllers[i].keyDown},
+                    {"keyLeft", reg.playerControllers[i].keyLeft},
+                    {"keyRight", reg.playerControllers[i].keyRight},
+                    {"mouseLookButton", reg.playerControllers[i].mouseLookButton},
+                    {"useMouseLook", reg.playerControllers[i].useMouseLook}
+                };
+            }
+
+
 
             scene["entities"].push_back(entity);
         }
@@ -124,7 +139,7 @@ public:
         std::ifstream file(filepath);
         if (!file.is_open()) return;
 
-        json scene;
+        nlohmann::json scene;
         file >> scene;
 
         // 1. Clear existing entities (Reset the Registry)
@@ -256,6 +271,27 @@ public:
 				reg.AddTexture(entity, textureComponent);
 			
 			}
+
+            
+            if (entityData.contains("playerController")) {
+                nlohmann::json& pc = entityData["playerController"];
+                
+                // Assign values
+                reg.playerControllers[entity].moveSpeed = pc["moveSpeed"];
+                reg.playerControllers[entity].isControlled = pc["isControlled"];
+                reg.playerControllers[entity].isThirdPerson = pc["isThirdPerson"];
+                reg.playerControllers[entity].keyUp = pc["keyUp"];
+                reg.playerControllers[entity].keyDown = pc["keyDown"];
+                reg.playerControllers[entity].keyLeft = pc["keyLeft"];
+                reg.playerControllers[entity].keyRight = pc["keyRight"];
+                reg.playerControllers[entity].mouseLookButton = pc["mouseLookButton"];
+                reg.playerControllers[entity].useMouseLook = pc["useMouseLook"];
+                
+                // Mark the component as existing for this entity
+                reg.hasPlayerController[entity] = true;
+            }
+
+
 
         }
     }

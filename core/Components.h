@@ -4,6 +4,7 @@
 #include "Mesh.h"
 #include "Camera.h"
 
+
 struct Transform{
     glm::vec3 position{0.0f};
     glm::vec3 rotation{0.0f};
@@ -28,7 +29,6 @@ struct PhysicsComponent{
 	// TODO store a simplified convex hull mesh for performance
 
 };
-
 
 // The Renderable component tells the RenderSystem which mesh to draw for this entity, 
 // and what color to use if not using vertex colors.
@@ -66,4 +66,24 @@ struct LifetimeComponent {
 
 struct NameComponent {
     std::string name; // Entity name
+};
+
+
+struct PlayerControllerComponent {
+    float moveSpeed;
+    bool isControlled; // entity will accept input 
+	bool isThirdPerson = true;   	
+ 
+	// Keybindings
+    int keyUp    = SDLK_W;
+    int keyDown  = SDLK_S;
+    int keyLeft  = SDLK_A;
+    int keyRight = SDLK_D;	
+
+	// Mouse bindings (using SDL_BUTTON constants)
+    int mouseLookButton = SDL_BUTTON_RIGHT; 
+    bool useMouseLook = true;
+
+    glm::vec3 fpsOffset{5.0f, 1.6f, 0.0f};
+    glm::vec3 thirdPersonOffset{0.0f, 5.5f, 2.0f};
 };

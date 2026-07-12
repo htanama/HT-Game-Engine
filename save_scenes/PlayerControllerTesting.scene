@@ -1,0 +1,873 @@
+{
+    "entities": [
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 0,
+            "meshName": "cube",
+            "name": "tile_floor1",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/Wood-floor.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "velocity": {
+                "angular": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "linear": [
+                    0.0,
+                    -2.0,
+                    0.0
+                ]
+            }
+        },
+        {
+            "color": {
+                "b": 0.6047067046165466,
+                "g": 0.7426160573959351,
+                "r": 0.16920366883277893
+            },
+            "id": 1,
+            "meshName": "capsule",
+            "name": "Player",
+            "physics": {
+                "isEnabled": true
+            },
+            "playerController": {
+                "isControlled": true,
+                "isThirdPerson": false,
+                "keyDown": 115,
+                "keyLeft": 97,
+                "keyRight": 100,
+                "keyUp": 119,
+                "mouseLookButton": 3,
+                "moveSpeed": 5.0,
+                "useMouseLook": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 3.0,
+                "y": 3.0,
+                "z": 3.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/stone.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -3.799999952316284,
+                "y": 3.0,
+                "z": 0.0
+            },
+            "velocity": {
+                "angular": [
+                    0.0,
+                    0.0,
+                    0.0
+                ],
+                "linear": [
+                    0.0,
+                    -9.800000190734863,
+                    0.0
+                ]
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 2,
+            "meshName": "cube",
+            "name": "box2",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 3.0,
+                "y": 3.0,
+                "z": 3.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/wood.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 3.521389961242676,
+                "y": 1.649999976158142,
+                "z": 2.853940725326538
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 3,
+            "meshName": "cube",
+            "name": "dirt_floor1",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/chess_tile.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 19.899999618530273,
+                "y": 0.0,
+                "z": -20.100000381469727
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 4,
+            "meshName": "cube",
+            "name": "tile_floor2",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/Wood-floor.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -0.17883606255054474,
+                "y": 0.0,
+                "z": 19.8979434967041
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 5,
+            "meshName": "cube",
+            "name": "chess_floor1",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/chess_tile.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 0.09473742544651031,
+                "y": 0.0012035369873046875,
+                "z": -19.845291137695313
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 6,
+            "meshName": "cube",
+            "name": "chess_floor2",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/chess_tile.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -20.0,
+                "y": 0.0,
+                "z": -19.700000762939453
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 7,
+            "meshName": "cube",
+            "name": "chess_floor3",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/Wood-floor.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -19.899999618530273,
+                "y": 0.0,
+                "z": 0.30000001192092896
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 8,
+            "meshName": "cube",
+            "name": "dirt_floor2",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/Wood-floor.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 19.899999618530273,
+                "y": 0.0,
+                "z": 0.0
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 9,
+            "meshName": "cube",
+            "name": "dirt_floor3",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/Wood-floor.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 19.750999450683594,
+                "y": 0.0,
+                "z": 19.930999755859375
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 10,
+            "meshName": "cube",
+            "name": "tile_floor3",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 20.0,
+                "y": 0.20000000298023224,
+                "z": 20.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/Wood-floor.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -19.899999618530273,
+                "y": 0.0,
+                "z": 19.899999618530273
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 11,
+            "meshName": "sphere",
+            "name": "Earth",
+            "rotation": {
+                "x": 0.0,
+                "y": 3453.270751953125,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 10.0,
+                "y": 10.0,
+                "z": 10.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/earth.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 0.43883371353149414,
+                "y": 17.24683380126953,
+                "z": -5.801399230957031
+            },
+            "velocity": {
+                "angular": [
+                    0.0,
+                    20.0,
+                    0.0
+                ],
+                "linear": [
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            }
+        },
+        {
+            "color": {
+                "b": 0.9295162558555603,
+                "g": 0.9295162558555603,
+                "r": 0.9704641103744507
+            },
+            "id": 12,
+            "meshName": "cube",
+            "name": "box3",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 3.0,
+                "y": 3.0,
+                "z": 3.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/wood.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 2.9000000953674316,
+                "y": 2.0,
+                "z": 0.0
+            }
+        },
+        {
+            "color": {
+                "b": 0.3538428246974945,
+                "g": 0.6347671747207642,
+                "r": 0.6708860397338867
+            },
+            "id": 13,
+            "meshName": "cylinder",
+            "name": "pole",
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 1.0,
+                "y": 30.0,
+                "z": 1.0
+            },
+            "transform": {
+                "x": 12.68021011352539,
+                "y": 2.687999963760376,
+                "z": -9.182999610900879
+            }
+        },
+        {
+            "color": {
+                "b": 0.9535865187644958,
+                "g": 0.9535865187644958,
+                "r": 0.9535865187644958
+            },
+            "id": 14,
+            "meshName": "cube",
+            "name": "wall",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 0.20000000298023224,
+                "y": 10.0,
+                "z": 15.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/assets/brick.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -29.36846351623535,
+                "y": 5.0,
+                "z": -6.617000102996826
+            }
+        },
+        {
+            "color": {
+                "b": 0.9535865187644958,
+                "g": 0.9535865187644958,
+                "r": 0.9535865187644958
+            },
+            "id": 15,
+            "meshName": "cube",
+            "name": "wall2",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 0.20000000298023224,
+                "y": 10.0,
+                "z": 15.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/assets/brick.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -29.36846351623535,
+                "y": 5.0,
+                "z": 8.383000373840332
+            }
+        },
+        {
+            "color": {
+                "b": 0.9535865187644958,
+                "g": 0.9535865187644958,
+                "r": 0.9535865187644958
+            },
+            "id": 16,
+            "meshName": "cube",
+            "name": "wall3",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 0.20000000298023224,
+                "y": 10.0,
+                "z": 15.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/assets/brick.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -29.360000610351563,
+                "y": 5.0,
+                "z": -21.617000579833984
+            }
+        },
+        {
+            "color": {
+                "b": 0.9535865187644958,
+                "g": 0.9535865187644958,
+                "r": 0.9535865187644958
+            },
+            "id": 17,
+            "meshName": "cube",
+            "name": "wall4",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 0.20000000298023224,
+                "y": 10.0,
+                "z": 15.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/assets/brick.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -22.26799964904785,
+                "y": 5.0,
+                "z": -29.517000198364258
+            }
+        },
+        {
+            "color": {
+                "b": 0.9535865187644958,
+                "g": 0.9535865187644958,
+                "r": 0.9535865187644958
+            },
+            "id": 18,
+            "meshName": "cube",
+            "name": "wall5",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 0.20000000298023224,
+                "y": 10.0,
+                "z": 15.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/assets/brick.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -7.28000020980835,
+                "y": 5.0,
+                "z": -29.5
+            }
+        },
+        {
+            "color": {
+                "b": 0.9535865187644958,
+                "g": 0.9535865187644958,
+                "r": 0.9535865187644958
+            },
+            "id": 19,
+            "meshName": "cube",
+            "name": "wall6",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 0.20000000298023224,
+                "y": 10.0,
+                "z": 15.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/assets/brick.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 7.5,
+                "y": 5.0,
+                "z": -29.5
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 20,
+            "meshName": "cube",
+            "name": "box1",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 3.0,
+                "y": 3.0,
+                "z": 3.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/wood.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 9.420999526977539,
+                "y": 2.0,
+                "z": 11.253999710083008
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 21,
+            "meshName": "cylinder",
+            "name": "Silo2",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 6.0,
+                "y": 4.0,
+                "z": 6.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/tile.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -9.692761421203613,
+                "y": 2.188344955444336,
+                "z": -18.56800079345703
+            }
+        },
+        {
+            "color": {
+                "b": 0.9535865187644958,
+                "g": 0.9535865187644958,
+                "r": 0.9535865187644958
+            },
+            "id": 22,
+            "meshName": "cube",
+            "name": "wall7",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 0.20000000298023224,
+                "y": 10.0,
+                "z": 15.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/assets/brick.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -29.299999237060547,
+                "y": 5.0,
+                "z": 23.283000946044922
+            }
+        },
+        {
+            "color": {
+                "b": 0.9535865187644958,
+                "g": 0.9535865187644958,
+                "r": 0.9535865187644958
+            },
+            "id": 23,
+            "meshName": "cube",
+            "name": "wall8",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 0.20000000298023224,
+                "y": 10.0,
+                "z": 15.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/assets/brick.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 22.399999618530273,
+                "y": 5.0,
+                "z": -29.5
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 24,
+            "meshName": "cylinder",
+            "name": "Silo1",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 6.0,
+                "y": 4.0,
+                "z": 6.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/tile.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": -18.899999618530273,
+                "y": 2.0,
+                "z": 0.0
+            }
+        },
+        {
+            "color": {
+                "b": 1.0,
+                "g": 1.0,
+                "r": 1.0
+            },
+            "id": 25,
+            "meshName": "cube",
+            "name": "Box4",
+            "physics": {
+                "isEnabled": true
+            },
+            "rotation": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "scale": {
+                "x": 3.0,
+                "y": 3.0,
+                "z": 3.0
+            },
+            "texture": {
+                "path": "/home/harry/Linux-Projects-Dev/HT-Game-Engine/build/assets/wood.png",
+                "useTexture": true
+            },
+            "transform": {
+                "x": 7.020999908447266,
+                "y": 2.0,
+                "z": -13.946000099182129
+            }
+        }
+    ]
+}

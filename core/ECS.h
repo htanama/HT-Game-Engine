@@ -4,7 +4,7 @@
 #include "Components.h"
 #include "utility/MeshManager.h"
 
-using Entity = size_t; // Alias for entity IDs
+using Entity = size_t; // Alias for entity ID;
 
 // The Registry class manages all entities and their associated components.
 class Registry 
@@ -25,26 +25,29 @@ public:
     std::vector<TextureComponent> textures; 
     std::vector<PhysicsComponent> physics; // collision detection
     std::vector<MeshComponent> meshes;
-
-    
+	std::vector<PlayerControllerComponent> playerControllers;   
+ 
     // We use a simple way to track which entity has which componetes.  
     std::vector<bool> hasTransform;
     std::vector<bool> hasRenderable;
     std::vector<bool> hasVelocity;
     std::vector<bool> hasColor;    
     std::vector<bool> hasLifetime;
-    std::vector<bool> hasCamera; // Track which entities have a CameraComponent
+    std::vector<bool> hasCamera;
     std::vector<bool> hasName;
     std::vector<bool> hasTexture;           
 	std::vector<bool> hasPhysics;
     std::vector<bool> hasMesh;
+    std::vector<bool> hasPlayerController;
 
-    Entity CreateEntity(){        
+
+Entity CreateEntity(){        
         // New entity ID is the current size of the component arrays
         Entity id = hasTransform.size();                 
         std::string defaultName = "Object" + std::to_string(id);
 
-        transforms.push_back({}); // Add default Transform
+        // Add components to the Entity 
+		transforms.push_back({}); // Add default Transform
         renderables.push_back({}); // Add default Renderable
         velocities.push_back({}); // Add default Velocity
         colors.push_back({}); // Add default ColorComponent        
@@ -54,17 +57,21 @@ public:
 		cameras.push_back({}); // we need to limit how many camera ?		
     	physics.push_back({});
         meshes.push_back({});
+		playerControllers.push_back({}); 		
 
-        hasTransform.push_back(false); // Initially, the entity has no components
-        hasRenderable.push_back(false); // Initially, the entity has no components
-        hasVelocity.push_back(false); // Initially, the entity has no components
-        hasColor.push_back(false); // Initially, the entity has no components        
-        hasLifetime.push_back(false); // Initially, the entity has no components
+	   	
+		// Initially, the entity has no components
+		hasTransform.push_back(false);         
+		hasRenderable.push_back(false);
+        hasVelocity.push_back(false);
+        hasColor.push_back(false); 
+        hasLifetime.push_back(false);
         hasName.push_back(true);
         hasTexture.push_back(false);
 		hasCamera.push_back(false);
         hasPhysics.push_back(false);
         hasMesh.push_back(false);
+		hasPlayerController.push_back(false);
 
         ++entityCount;
         return id;
@@ -232,5 +239,13 @@ public:
         hasPhysics[e] = true;
     }	    
 
+	void AddPlayerController(size_t entity, float speed) {
+		if (entity >= playerControllers.size()) {
+			playerControllers.resize(entity + 1);
+			hasPlayerController.resize(entity + 1, false);
+		}
+		playerControllers[entity] = { speed, true }; // Assign speed and active flag
+		hasPlayerController[entity] = true;          // Flag as having component
+	}
 
 };
